@@ -21,19 +21,20 @@ class GeneticAlgorithm:
             self.population = self.initialize_population()
 
     def initialize_population(self):
-        # Create a population with random compositions
+        logging.info("Initializing population.")
         return [self.random_composition() for _ in range(self.population_size)]
 
     def random_composition(self):
-        # Generate a random composition which sums to 1
+        logging.info("Generating random composition.")
         comp = np.random.dirichlet(np.ones(len(self.elements)), size=1)[0]
         return comp
 
-    def evaluate_fitness(self, comp):
-        # Calculate the fitness score using the target function
+    def evaluate_fitness(self, comp):        
+        logging.info(f"Evaluating fitness for composition: {comp}")
         return target(self.elements, comp)
 
     def select_parents(self):
+        logging.info("Selecting parents.")
         fitness_scores = np.array([self.evaluate_fitness(comp) for comp in self.population])        
 
         if fitness_scores.size != self.population_size:
@@ -56,6 +57,7 @@ class GeneticAlgorithm:
         return [self.population[i] for i in selected_indices]
 
     def crossover(self, parent1, parent2):
+        logging.info("Crossover.")
         if np.random.rand() < self.crossover_rate:
             point = np.random.randint(1, len(self.elements) - 1)
             offspring1 = np.concatenate((parent1[:point], parent2[point:]))
@@ -67,6 +69,7 @@ class GeneticAlgorithm:
 
 
     def mutate(self, individual):
+        logging.info("Mutating.")
         if np.random.rand() < self.mutation_rate:
             for _ in range(np.random.randint(1, len(self.elements) // 2 + 1)):  
                 point = np.random.randint(len(self.elements))
@@ -77,6 +80,7 @@ class GeneticAlgorithm:
 
 
     def evolve(self):
+        logging.info("Evolving.")
         for generation in range(self.generations):
             selected_population = self.select_parents()
             if len(selected_population) % 2 != 0:
@@ -100,8 +104,8 @@ class GeneticAlgorithm:
 if __name__ == "__main__":
     elements = ['Fe', 'Ni', 'Co', 'Cr', 'V', 'Cu', 'Ti', 'Al']
     ga = GeneticAlgorithm(elements)
-    comp, best = ga.evolve()
-    print(comp)
+    best_individual, best_score = ga.evolve()
+    logging.info(best_individual, best_score)
     target_value = target(elements, comp)
     print("Best Composition:", comp)
     print("Target Value:", target_value)
