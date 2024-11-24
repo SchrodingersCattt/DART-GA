@@ -101,8 +101,7 @@ def z_core(array, mean = None, std = None):
 def norm2orig(pred, mean, std):
     return array * std + mean
 
-def pred(model, structure):
-    model = DeepProperty(model)
+def pred(model, structure):    
     d = dpdata.System(structure, fmt='pymatgen/structure')
     orig_type_map = d.data["atom_names"]
     coords = d.data['coords']
@@ -130,6 +129,8 @@ def target(elements, compositions):
 
     tec_models = glob.glob('models/tec*.pt')
     density_models = glob.glob('models/density*.pt')
+    tec_models = (DeepProperty(model) for model in tec_models)
+    density_models = (DeepProperty(model) for model in density_models)
     packing = get_packing(elements, compositions)
     struct_list = comp2struc(elements, compositions, packing=packing)
 
@@ -149,7 +150,7 @@ def target(elements, compositions):
 if __name__ == "__main__":
     comp = [64, 36, 0, 0, 0, 0]
     elements = ['Fe', 'Ni', 'Co', 'Cr', 'V', 'Cu']
-    ss = comp2struc(elements, comp)
+    ss = comp2struc(elements, comp, 'fcc')
     from time import time
     start = time()
     target = target(elements, comp)
