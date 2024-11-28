@@ -7,7 +7,6 @@ from pymatgen.core.structure import Structure, Element, Lattice
 from deepmd.pt.infer.deep_eval import DeepProperty
 
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 atomic_mass_file = "constant/atomic_mass.json"
 
@@ -56,15 +55,18 @@ def mass_to_molar(mass_dict: dict):
     return molar_composition
 
 def comp2struc(element_list, mass_composition, packing):
-
-    MAX = 10    
+    MAX = 10
     supercell = mk_template_supercell(packing)
     pmg_elements = [Element(e) for e in element_list]
     composition = mass_to_molar(dict(zip(element_list, mass_composition)))
 
     atom_num = len(supercell)
     normalized_composition = normalize_composition(copy.deepcopy(composition), atom_num)
-    
+    logging.info(f"Normalized composition: {normalized_composition}")
+
+    if normalized_composition is None or sum(normalized_composition) != atom_num:
+        raise ValueError("Composition normalization failed.")
+
     strucutre_list = []
     for rand_seed in range(MAX):
         np.random.seed(rand_seed)
@@ -74,8 +76,8 @@ def comp2struc(element_list, mass_composition, packing):
         for ii, (element, num) in enumerate(replace_mapping):
             available_indices = np.setdiff1d(atom_range, selected_indices)
 
-            if len(available_indices) < num:
-                raise ValueError("Insufficient atoms to replace")
+            if num < 0 or len(available_indices) < num:
+                raise ValueError(f"Invalid atom replacement: num={num}, available={len(available_indices)}")
 
             chosen_idx = np.random.choice(available_indices, num, replace=False)
             selected_indices.extend(chosen_idx)
@@ -85,6 +87,7 @@ def comp2struc(element_list, mass_composition, packing):
         strucutre_list.append(ss)
 
     return strucutre_list
+
 
 
 def change_type_map(origin_type: list, data_type_map, model_type_map):
@@ -99,7 +102,7 @@ def z_core(array, mean = None, std = None):
     return (array - mean) / std
 
 def norm2orig(pred, mean, std):
-    return array * std + mean
+    return pred * std + mean
 
 def pred(model, structure):    
     d = dpdata.System(structure, fmt='pymatgen/structure')
@@ -118,14 +121,15 @@ def pred(model, structure):
 
 def get_packing(elements, compositions): 
     ## TODO 
-    packing = 'fcc'
+    packing = 'bcc'
     return packing
 
-def target(elements, compositions):
+def target(elements, compositions, generation=None, finalize=None):
     a = 0.9
     b = 0.1
     c = 0.9
     d = 0.1
+    logging.info(f"a: {a}, b: {b}, c: {c}, d: {d}, compositions: {compositions}")
 
     tec_models = glob.glob('models/tec*.pt')
     density_models = glob.glob('models/density*.pt')
@@ -143,17 +147,51 @@ def target(elements, compositions):
     pred_density_std = np.std(pred_density)
     target = a * (-1* pred_tec_mean) + b * pred_tec_std + c * (-1* pred_density_mean) + d * pred_density_std
 
+    if generation is not None:
+        logging.info(
+            f"""
+            ====\n
+            - Generation {generation}, 
+            - pred_tec_mean: {norm2orig(pred_tec_mean, mean=9.76186694677871, std=4.3042156360248125)},
+            - pred_density_mean: {norm2orig(pred_density_mean, mean= 8331.903892865434, std=182.21803336559455)},
+            - target: {target}
+            ----\n
+            """)
+    if finalize is not None:
+        logging.info(f"Final target: {target}")
+        logging.info(
+            f"""
+            ====\n
+            - pred_tec_mean: {norm2orig(pred_tec_mean, mean=9.76186694677871, std=4.3042156360248125)},
+            - pred_density_mean: {norm2orig(pred_density_mean, mean= 8331.903892865434, std=182.21803336559455)},
+            - pred_tec_std: {np.std([norm2orig(tec, mean=9.76186694677871, std=4.3042156360248125) for tec in pred_density])},
+            - pred_density_std: {np.std([norm2orig(den, mean= 8331.903892865434, std=182.21803336559455) for den in pred_density])},
+            - target: {target}
+            ----\n
+            """)
+
+
     return target
 
 
 
 if __name__ == "__main__":
-    comp = [64, 36, 0, 0, 0, 0]
-    elements = ['Fe', 'Ni', 'Co', 'Cr', 'V', 'Cu']
-    ss = comp2struc(elements, comp, 'fcc')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    comp = [
+        1.58534604e-01,
+        3.81925319e-02,
+        9.92886136e-02,
+        1.09126615e-02,
+        6.92985901e-01,
+        8.56879332e-05, 
+        0.00000000e+00, 
+        0.00000000e+00
+    ]
+    elements = ['Fe', 'Ni', 'Co', 'Cr', 'V', 'Cu', 'Al', 'Ti']
+    ss = comp2struc(elements, comp, 'bcc')
     from time import time
     start = time()
-    target = target(elements, comp)
+    target = target(elements, comp, finalize=True)
     end = time()
     print(end - start)
     print(target)
