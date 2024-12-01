@@ -128,15 +128,12 @@ def get_packing(elements, compositions):
 def target(
         elements, 
         compositions, 
+        a=0.9, b=0.1, c=0.9, d=0.1,
         generation=None, 
         finalize=None, 
         get_density_mode="relax", 
         calculator=DPCalculator("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/RELAX_Density_Calculation/alloy.pth")
     ):
-    a = 0.9
-    b = 0.1
-    c = 0.9
-    d = 0.1
     logging.info(f"a: {a}, b: {b}, c: {c}, d: {d}, compositions: {compositions}")
     packing = get_packing(elements, compositions)
 

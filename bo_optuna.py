@@ -4,7 +4,7 @@ import argparse
 import logging
 from target import target
 
-def objective(trial, elements, generation):
+def objective(trial, elements, generation, a, b, c, d):
     # Suggest compositions
     compositions = [trial.suggest_uniform(f"comp_{element}", 0, 1) for element in elements]
     logging.info(f"Generation {generation}: Trial {trial.number} - Raw Compositions: {compositions}")
@@ -22,6 +22,7 @@ def objective(trial, elements, generation):
             finalize=None,
             get_density_mode="relax",
             generation=generation,
+            a=a, b=b, c=c, d=d  # Pass a, b, c, d here
         )
     except Exception as e:
         logging.error(f"Generation {generation}: Trial {trial.number} - Error during evaluation: {e}")
@@ -31,7 +32,7 @@ def objective(trial, elements, generation):
     return -score  # Minimize negative score to maximize the original target
 
 
-def run_optimization(elements, n_trials=100, initial_guesses=None):
+def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1, c=0.9, d=0.1):
     # Initialize Optuna study
     study = optuna.create_study(direction="minimize")
     generation = 0
@@ -55,7 +56,7 @@ def run_optimization(elements, n_trials=100, initial_guesses=None):
         generation += 1
 
     study.optimize(
-        lambda trial: objective(trial, elements, generation),
+        lambda trial: objective(trial, elements, generation, a, b, c, d),  # Pass a, b, c, d here
         n_trials=n_trials,
         callbacks=[trial_callback]
     )
@@ -92,6 +93,13 @@ if __name__ == "__main__":
                         help="Initial guesses for compositions. Each guess should be a list of floats, one per element.")
     parser.add_argument("--n_trials", type=int, default=100, help="Number of optimization trials.")
     parser.add_argument("-o", "--output", type=str, default="bo_debug.log", help="Log filename (default: bo_debug.log)")
+
+    # Add arguments for a, b, c, d
+    parser.add_argument("--a", type=float, default=0.9, help="Weight for TEC mean (default: 0.9)")
+    parser.add_argument("--b", type=float, default=0.1, help="Weight for TEC std (default: 0.1)")
+    parser.add_argument("--c", type=float, default=0.9, help="Weight for density mean (default: 0.9)")
+    parser.add_argument("--d", type=float, default=0.1, help="Weight for density std (default: 0.1)")
+
     args = parser.parse_args()
 
     # Configure logging
@@ -133,8 +141,9 @@ if __name__ == "__main__":
     
     n_trials = args.n_trials
     logging.info(f"Elements: {elements}")
+    a, b, c, d = args.a, args.b, args.c, args.d
 
     # Run optimization
-    best_compositions = run_optimization(elements, n_trials=n_trials, initial_guesses=initial_guesses)
+    best_compositions = run_optimization(elements, n_trials=n_trials, initial_guesses=initial_guesses, a=a, b=b, c=c, d=d)
     logging.info("Best Composition: %s", best_compositions)
     print("Best Composition:", best_compositions)

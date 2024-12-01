@@ -93,7 +93,7 @@ def plot_ga(g, tec, density, target):
 if __name__ == "__main__":
     # Parse the log file
     import glob
-    logs = glob.glob("*bo*.log") + glob.glob("20241130*log")
+    logs = glob.glob("20241130*.log") + glob.glob("20241201*log")
     for log in logs:
         print(f"=========Parsing {log}")
         generations, pred_tec_means, pred_density_means, targets, best_individuals = parse_log(log)

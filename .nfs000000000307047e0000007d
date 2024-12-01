@@ -1,0 +1,50 @@
+2024-12-01 19:03:15,706 - INFO - ----Starting Particle Swarm Optimization----
+2024-12-01 19:03:15,706 - INFO - Elements: ['Fe', 'Co', 'Ni', 'Cr', 'V', 'Cu']
+2024-12-01 19:03:15,707 - INFO - Generation 0 start.
+2024-12-01 19:03:15,709 - INFO - a: 0.9, b: 0.1, c: 0.9, d: 0.1, compositions: [0.04614569 0.18168919 0.12591149 0.01891451 0.56149218 0.06584694]
+2024-12-01 19:03:15,755 - INFO - Normalized composition: [19, 72, 50, 9, 258, 24]
+2024-12-01 19:03:41,971 - INFO - ----Starting Particle Swarm Optimization----
+2024-12-01 19:03:41,971 - INFO - Elements: ['Fe', 'Co', 'Ni', 'Cr', 'V', 'Cu']
+2024-12-01 19:03:41,972 - INFO - Generation 0 start.
+2024-12-01 19:03:41,974 - INFO - a: 0.9, b: 0.1, c: 0.9, d: 0.1, compositions: [0.30626735 0.15148048 0.31241185 0.09551423 0.00548367 0.12884242]
+2024-12-01 19:03:41,999 - INFO - Normalized composition: [136, 64, 133, 46, 3, 50]
+2024-12-01 19:04:08,914 - INFO - Optimization converged successfully
+2024-12-01 19:04:17,109 - INFO - Optimization converged successfully
+2024-12-01 19:04:23,747 - INFO - Optimization converged successfully
+2024-12-01 19:04:59,386 - INFO - ----Starting Particle Swarm Optimization----
+2024-12-01 19:04:59,386 - INFO - Elements: ['Fe', 'Co', 'Ni', 'Cr', 'V', 'Cu']
+2024-12-01 19:04:59,386 - INFO - Generation 0 start.
+2024-12-01 19:04:59,388 - INFO - a: 0.9, b: 0.1, c: 0.9, d: 0.1, compositions: [0.09429948 0.13224405 0.03748548 0.39264356 0.33005205 0.01327538]
+2024-12-01 19:04:59,429 - INFO - Normalized composition: [39, 52, 15, 172, 149, 5]
+2024-12-01 19:05:23,190 - INFO - Optimization converged successfully
+2024-12-01 19:05:28,563 - INFO - Optimization converged successfully
+2024-12-01 19:05:33,898 - INFO - Optimization converged successfully
+2024-12-01 19:05:38,126 - INFO - Optimization converged successfully
+2024-12-01 19:05:43,476 - INFO - Optimization converged successfully
+2024-12-01 19:05:48,194 - INFO - Optimization converged successfully
+2024-12-01 19:05:53,440 - INFO - Optimization converged successfully
+2024-12-01 19:05:58,854 - INFO - Optimization converged successfully
+2024-12-01 19:06:03,744 - INFO - Optimization converged successfully
+2024-12-01 19:06:08,793 - INFO - Optimization converged successfully
+2024-12-01 19:06:08,797 - INFO - 
+            ====
+
+            - Generation 0, 
+            - pred_tec_mean: 6.0991192979672855,
+            - pred_density_mean: 7021.0654192144875,
+            - target: 7.4606904712860755
+            ----
+
+            
+2024-12-01 19:06:08,798 - INFO - Particle 139782386457616: New personal best score: 7.4606904712860755
+2024-12-01 19:06:08,798 - INFO - Global best updated: Score: 7.4606904712860755, Position: [0.09429948 0.13224405 0.03748548 0.39264356 0.33005205 0.01327538]
+2024-12-01 19:06:08,800 - INFO - a: 0.9, b: 0.1, c: 0.9, d: 0.1, compositions: [0.13447762 0.0581839  0.33069296 0.29931983 0.10912774 0.06819794]
+2024-12-01 19:06:08,820 - INFO - Normalized composition: [58, 24, 135, 138, 51, 26]
+2024-12-01 19:06:24,957 - INFO - Optimization converged successfully
+2024-12-01 19:06:36,483 - INFO - Optimization converged successfully
+2024-12-01 19:06:48,346 - INFO - Optimization converged successfully
+2024-12-01 19:07:00,290 - INFO - Optimization converged successfully
+2024-12-01 19:07:11,898 - INFO - Optimization converged successfully
+2024-12-01 19:07:24,036 - INFO - Optimization converged successfully
+2024-12-01 19:07:36,294 - INFO - Optimization converged successfully
+2024-12-01 19:07:47,607 - INFO - Optimization converged successfully
