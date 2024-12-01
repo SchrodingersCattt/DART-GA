@@ -2,6 +2,7 @@
 *.log
 *.png
 _workplace/
+.nfs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
