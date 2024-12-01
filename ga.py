@@ -4,21 +4,35 @@ import numpy as np
 from target import target
 
 class GeneticAlgorithm:
-    def __init__(self, elements, population_size=10, generations=100, crossover_rate=0.8, mutation_rate=0.1, init_population=None):
+    def __init__(self, elements, population_size=10, generations=100, crossover_rate=0.8, mutation_rate=0.1, 
+                 selection_mode="roulette", init_population=None):
         self.elements = elements
         self.generations = generations
         self.crossover_rate = crossover_rate
         self.mutation_rate = mutation_rate
+        self.selection_mode = selection_mode  # 新增选择模式参数
         if init_population:
-            logging.info("Initial population provided, input size is invalid.")
-            self.population = init_population
-            self.population_size = len(init_population)
+            logging.info("Initial population provided, manipulating sizes if necessary.")
+            self.population = self.manipulate_population_size(init_population)
+            self.population_size = len(self.population)
         else:
             logging.info("Initial population not provided, using population size to randomize populations.")
             self.population_size = population_size
             self.population = self.initialize_population()
-        
+
         logging.info(f"Population size: {self.population_size}")
+
+    def manipulate_population_size(self, population):
+        manipulated_population = []
+        for individual in population:
+            if len(individual) < len(self.elements):
+                individual = np.pad(individual, (0, len(self.elements) - len(individual)), mode='constant')
+                logging.info(f"Padded individual: {individual}")
+            elif len(individual) > len(self.elements):
+                individual = individual[:len(self.elements)]
+                logging.info(f"Truncated individual: {individual}")
+            manipulated_population.append(individual)
+        return manipulated_population
 
     def initialize_population(self):
         logging.info("Initializing population.")
@@ -26,7 +40,6 @@ class GeneticAlgorithm:
         if not population:
             raise ValueError("Population initialization failed: population is empty.")
         return population
-
 
     def random_composition(self):
         logging.info("Generating random composition.")
@@ -38,12 +51,17 @@ class GeneticAlgorithm:
         return target(self.elements, comp, generation)
 
     def select_parents(self):
-        logging.info("Selecting parents.")
+        logging.info("Selecting parents using mode: %s", self.selection_mode)
+        if self.selection_mode == "roulette":
+            return self.roulette_selection()
+        elif self.selection_mode == "tournament":
+            return self.tournament_selection()
+        else:
+            raise ValueError(f"Unknown selection mode: {self.selection_mode}")
+
+    def roulette_selection(self):
         fitness_scores = np.array([self.evaluate_fitness(comp) for comp in self.population])
         logging.info(f"Fitness scores: {fitness_scores}")
-        if fitness_scores.size != self.population_size:
-            raise ValueError(f"Fitness scores {fitness_scores.size} size does not match population size {self.population_size}.")
-        
         total_fitness = np.sum(fitness_scores)
         
         if total_fitness == 0:
@@ -57,9 +75,16 @@ class GeneticAlgorithm:
         indices = np.arange(self.population_size)
         selected_indices = np.random.choice(indices, size=self.population_size, p=probabilities)
         parents = [self.population[i] for i in selected_indices]
-        if not parents:
-            raise ValueError("Parent selection failed: selected_population is empty.")
         return parents
+
+    def tournament_selection(self, tournament_size=3):
+        selected_population = []
+        for _ in range(self.population_size):
+            indices = np.random.choice(len(self.population), tournament_size, replace=False)
+            tournament = [self.population[i] for i in indices]
+            best_individual = max(tournament, key=self.evaluate_fitness)
+            selected_population.append(best_individual)
+        return selected_population
 
 
     def crossover(self, parent1, parent2):
@@ -78,7 +103,7 @@ class GeneticAlgorithm:
         if np.random.rand() < self.mutation_rate:
             for _ in range(np.random.randint(1, len(self.elements) // 2 + 1)):  
                 point = np.random.randint(len(self.elements))
-                individual[point] += np.random.normal(0, 0.05) 
+                individual[point] += np.random.uniform(0.01, 0.05)
                 individual = np.clip(individual, a_min=0, a_max=1)
                 individual /= np.sum(individual)  
         individual = np.clip(individual, a_min=0, a_max=1)
@@ -107,14 +132,17 @@ class GeneticAlgorithm:
         return best_individual, best_score
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genetic Algorithm for Element Optimization")
     parser.add_argument("-o", "--output", type=str, default="ga_debug.log", help="Log filename (default: ga.log)")
-    parser.add_argument("-e", "--elements", type=str, default="Fe,Ni,Co,Cr,V,Cu", 
+    parser.add_argument("-e", "--elements", type=str, default="Fe,Ni,Co,Cr,V,Cu,Al,Ti", 
                         help="Comma-separated list of elements (default: predefined list)")
     parser.add_argument("-m", "--mode", type=str, default="random", 
-                        help="Choose between 'random' and 'init_population")
+                        help="Choose between 'random' and 'init_population'")
     parser.add_argument("-p", "--population_size", type=int, default=10, help="Population size (default: 10)")
+    parser.add_argument("-s", "--selection_mode", type=str, default="roulette", 
+                        help="Selection mode: 'roulette' or 'tournament' (default: 'roulette')")
     parser.add_argument("-i", "--init_population", type=str, default=None, help="Initial population (default: None)")
     args = parser.parse_args()
 
@@ -143,14 +171,16 @@ if __name__ == "__main__":
         [0.605, 0.3, 0.075, 0.0, 0.02, 0.0], 
         [0.635, 0.3, 0.025, 0.0, 0.04, 0.0], 
         [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]]
+
     if args.mode == "random":
         init_population = None
     ga = GeneticAlgorithm(
         elements=elements,
-        population_size=16,
+        population_size=args.population_size,
         generations=100, 
         crossover_rate=0.8, 
-        mutation_rate=0.5, 
+        mutation_rate=0.3, 
+        selection_mode=args.selection_mode,  
         init_population=init_population)
     best_individual, best_score = ga.evolve()
 

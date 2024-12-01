@@ -1,12 +1,13 @@
 import glob
+import logging
 import copy
 import dpdata
 import numpy as np
 from tqdm import tqdm
 from pymatgen.core.structure import Structure, Element, Lattice
 from deepmd.pt.infer.deep_eval import DeepProperty
-
-import logging
+from calc_density import calculate_density
+from deepmd.calculator import DP as DPCalculator
 
 atomic_mass_file = "constant/atomic_mass.json"
 
@@ -15,7 +16,7 @@ def mk_template_supercell(packing: str):
         s = Structure.from_file("struct_template/fcc-Ni_mp-23_conventional_standard.cif")
         return s.make_supercell([5,5,5])
     elif "bcc" in packing:
-        s = Structure.from_file("struct_template/bcc-V_mp-146_conventional_standard.cif")
+        s = Structure.from_file("struct_template/bcc-Fe_mp-13_conventional_standard.cif")
         return s.make_supercell([6,6,6])
     elif "hcp" in packing:
         s = Structure.from_file("struct_template/hcp-Co_mp-54_conventional_standard.cif")
@@ -124,26 +125,41 @@ def get_packing(elements, compositions):
     packing = 'bcc'
     return packing
 
-def target(elements, compositions, generation=None, finalize=None):
+def target(
+        elements, 
+        compositions, 
+        generation=None, 
+        finalize=None, 
+        get_density_mode="relax", 
+        calculator=DPCalculator("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/RELAX_Density_Calculation/alloy.pth")
+    ):
     a = 0.9
     b = 0.1
     c = 0.9
     d = 0.1
     logging.info(f"a: {a}, b: {b}, c: {c}, d: {d}, compositions: {compositions}")
+    packing = get_packing(elements, compositions)
 
     tec_models = glob.glob('models/tec*.pt')
-    density_models = glob.glob('models/density*.pt')
     tec_models = (DeepProperty(model) for model in tec_models)
-    density_models = (DeepProperty(model) for model in density_models)
-    packing = get_packing(elements, compositions)
+
     struct_list = comp2struc(elements, compositions, packing=packing)
 
     ## TEC is original data, density is normalized data
     pred_tec = [z_core(pred(m, s), mean=9.76186694677871, std=4.3042156360248125) for m in tec_models for s in tqdm(struct_list)]
-    pred_density = [pred(m, s) for m in density_models for s in tqdm(struct_list)]
     pred_tec_mean = np.mean(pred_tec)
-    pred_density_mean = np.mean(pred_density)
     pred_tec_std = np.std(pred_tec)
+
+    if get_density_mode == "relax":
+        assert calculator is not None, "calculator is not provided"
+        pred_density = [z_core(calculate_density(s, calculator), mean= 8331.903892865434, std=182.21803336559455) for s in tqdm(struct_list)]
+    elif get_density_mode == "predict" or get_density_mode == "pred":
+        density_models = glob.glob('models/density*.pt')
+        density_models = (DeepProperty(model) for model in density_models)
+        pred_density = [pred(m, s) for m in density_models for s in tqdm(struct_list)]
+    else:
+        raise ValueError(f"{get_density_mode} not supported, choose between relax, predict or pred")
+    pred_density_mean = np.mean(pred_density)
     pred_density_std = np.std(pred_density)
     target = a * (-1* pred_tec_mean) + b * pred_tec_std + c * (-1* pred_density_mean) + d * pred_density_std
 
@@ -177,6 +193,7 @@ def target(elements, compositions, generation=None, finalize=None):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    calculator = DPCalculator("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/RELAX_Density_Calculation/alloy.pth")
     comp = [
         1.58534604e-01,
         3.81925319e-02,
@@ -191,7 +208,7 @@ if __name__ == "__main__":
     ss = comp2struc(elements, comp, 'bcc')
     from time import time
     start = time()
-    target = target(elements, comp, finalize=True)
+    target = target(elements, comp, finalize=True, get_density_mode="pred", calculator=calculator)
     end = time()
     print(end - start)
     print(target)

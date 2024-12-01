@@ -1,5 +1,6 @@
 import re
 import matplotlib.pyplot as plt
+import ast
 
 def parse_log(log_file):
     with open(log_file, 'r') as f:
@@ -9,6 +10,7 @@ def parse_log(log_file):
     pred_tec_means = []
     pred_density_means = []
     targets = []
+    best_individuals = {}
 
     # Define regex patterns
     gen_pattern = re.compile(r"- Generation (\d+)")
@@ -17,8 +19,10 @@ def parse_log(log_file):
     target_pattern = re.compile(r"target:\s*([-+]?\d*\.\d+|\d+)")
 
     read_blocks = False
-
+    best_individual_str = ""
     for line in lines:
+        if "Elements: " in line:
+            element_list = ast.literal_eval(line.split("Elements: ")[-1])
         # Check for section start
         if "====" in line:
             read_blocks = True
@@ -51,7 +55,24 @@ def parse_log(log_file):
             if target_match:
                 targets.append(float(target_match.group(1)))
 
-    return generations, pred_tec_means, pred_density_means, targets
+
+        if "Best Individual: [" in line and not "]" in line:
+            best_individual_str = line.split("Best Individual: [")[-1]  # 获取列表的第一部分
+        
+        elif "]" in line and best_individual_str:
+            best_individual_str += line.split("]")[0] 
+            best_individual = list(map(float, best_individual_str.split()))
+            for idx, e in enumerate(element_list):
+                best_individuals[e] = best_individual[idx]
+            
+            best_individual_str = "" 
+        elif "Best Individual: [" in line and '[' in line and ']' in line:
+            
+            s = line.split("Best Individual: [")[-1].split("]")[0]
+            best_individual = list(map(float, s.split()))
+            for idx, e in enumerate(element_list):
+                best_individuals[e] = best_individual[idx]
+    return generations, pred_tec_means, pred_density_means, targets, best_individuals
 
 def plot_ga(g, tec, density, target):
     plt.subplot(131)
@@ -72,16 +93,18 @@ def plot_ga(g, tec, density, target):
 if __name__ == "__main__":
     # Parse the log file
     import glob
-    logs = glob.glob("20241125*.log")
+    logs = glob.glob("*bo*.log") + glob.glob("20241130*log")
     for log in logs:
-        generations, pred_tec_means, pred_density_means, targets = parse_log(log)
+        print(f"=========Parsing {log}")
+        generations, pred_tec_means, pred_density_means, targets, best_individuals = parse_log(log)
         log_name = log.split(".log")[0]
         # Print results
         print("Generations:", generations)
         print("Pred Tec Means:", pred_tec_means)
         print("Pred Density Means:", pred_density_means)
+        print("Best Individuals:", best_individuals)
         print("Targets:", targets)
 
         plt.figure(figsize=(8,3))
         plot_ga(generations, pred_tec_means, pred_density_means, targets)
-        plt.savefig(f"ga_results_{log_name}.png")
+        plt.savefig(f"{log_name}.png")
