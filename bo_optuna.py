@@ -2,16 +2,66 @@ import optuna
 import numpy as np
 import argparse
 import logging
+import re
 from target import target
 
-def objective(trial, elements, generation, a, b, c, d):
+def parse_constraints(constraints_str):
+    """
+    Parse a constraints string into a dictionary of element-wise constraints.
+    
+    :param constraints_str: A string of constraints (e.g., 'Fe<0.5, Al<0.1')
+    :return: A dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
+    """
+    constraints = {}
+    if constraints_str:
+        for constraint in constraints_str.split(','):
+            if '<' in constraint:
+                element, condition = constraint.split('<')
+                constraints[element] = f"<{condition}"
+            elif '>' in constraint:
+                element, condition = constraint.split('>')
+                constraints[element] = f">{condition}"
+            else:
+                logging.warning(f"Invalid constraint format: {constraint}")
+    return constraints
+
+def apply_constraints(compositions, elements, constraints):
+    """
+    Apply constraints to the compositions based on element names.
+    
+    :param compositions: List of composition values
+    :param elements: List of elements corresponding to the composition values
+    :param constraints: A dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
+    :return: The modified compositions that satisfy the constraints
+    """
+    for i, element in enumerate(elements):
+        if element in constraints:
+            # Extract the condition and value (e.g., '<0.5')
+            condition_str = constraints[element]
+            condition, value = condition_str[0], float(condition_str[1:])
+            
+            # Apply the condition
+            if condition == '<' and compositions[i] > value:
+                compositions[i] = value
+            elif condition == '>' and compositions[i] < value:
+                compositions[i] = value
+            elif condition == '=' and compositions[i] != value:
+                compositions[i] = value
+    return compositions
+
+def objective(trial, elements, generation, a, b, c, d, constraints):
     # Suggest compositions
     compositions = [trial.suggest_uniform(f"comp_{element}", 0, 1) for element in elements]
     logging.info(f"Generation {generation}: Trial {trial.number} - Raw Compositions: {compositions}")
-    
     # Normalize compositions
     total_mass = sum(compositions)
     normalized_compositions = [comp / total_mass for comp in compositions]
+    
+    # Apply constraints
+    if constraints:
+        logging.info(f"Generation {generation}: Trial {trial.number} - Applying constraints: {constraints}")
+        normalized_compositions = apply_constraints(normalized_compositions, elements, constraints)
+
     logging.info(f"Generation {generation}: Trial {trial.number} - Normalized Compositions: {normalized_compositions}")
 
     # Evaluate the target
@@ -29,13 +79,13 @@ def objective(trial, elements, generation, a, b, c, d):
         return float("inf")  # Handle failed evaluations
     
     logging.info(f"Generation {generation}: Trial {trial.number} - Score: {-score}")
-    return -score  # Minimize negative score to maximize the original target
+    return score  
 
 
-def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1, c=0.9, d=0.1):
+def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1, c=0.9, d=0.1, constraints={}):
     # Initialize Optuna study
-    study = optuna.create_study(direction="minimize")
-    generation = 0
+    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
+    generation = 0  # Starting generation
 
     # Enqueue initial guesses if provided
     if initial_guesses:
@@ -53,10 +103,13 @@ def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1,
     # Optimization process
     def trial_callback(study, trial):
         nonlocal generation
-        generation += 1
+        if generation == 0:
+            generation += 1  # Start counting generations after the first trial
+        else:
+            generation += 1  # Increment generation after each trial
 
     study.optimize(
-        lambda trial: objective(trial, elements, generation, a, b, c, d),  # Pass a, b, c, d here
+        lambda trial: objective(trial, elements, generation, a, b, c, d, constraints),  # Pass constraints here
         n_trials=n_trials,
         callbacks=[trial_callback]
     )
@@ -100,6 +153,9 @@ if __name__ == "__main__":
     parser.add_argument("--c", type=float, default=0.9, help="Weight for density mean (default: 0.9)")
     parser.add_argument("--d", type=float, default=0.1, help="Weight for density std (default: 0.1)")
 
+    # Add a new argument for constraints
+    parser.add_argument("--constraints", type=str, default=None, help="Element-wise constraints (e.g., 'Fe<0.5, Al<0.1')")
+
     args = parser.parse_args()
 
     # Configure logging
@@ -112,6 +168,10 @@ if __name__ == "__main__":
 
     # Parse arguments
     elements = args.elements
+
+    constraints = parse_constraints(args.constraints)
+    logging.info(f"Constraints: {constraints}")
+
     if args.init_mode == 'random':
         initial_guesses = None
     elif args.init_mode == 'init':
@@ -144,6 +204,6 @@ if __name__ == "__main__":
     a, b, c, d = args.a, args.b, args.c, args.d
 
     # Run optimization
-    best_compositions = run_optimization(elements, n_trials=n_trials, initial_guesses=initial_guesses, a=a, b=b, c=c, d=d)
+    best_compositions = run_optimization(elements, n_trials=n_trials, initial_guesses=initial_guesses, a=a, b=b, c=c, d=d, constraints=constraints)
     logging.info("Best Composition: %s", best_compositions)
     print("Best Composition:", best_compositions)
