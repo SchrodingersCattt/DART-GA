@@ -79,11 +79,11 @@ class ParticleSwarmOptimization:
                 get_density_mode="relax",
                 a=a, b=b, c=c, d=d
             )
-            if score < particle.best_score:
+            if score > particle.best_score:
                 particle.best_score = score
                 particle.best_position = particle.position.copy()
                 logging.info(f"Particle {id(particle)}: New personal best score: {score}")
-            if score < self.global_best_score:
+            if score > self.global_best_score:
                 self.global_best_score = score
                 self.global_best_position = particle.position.copy()
                 logging.info(f"Global best updated: Score: {score}, Position: {self.global_best_position}")
