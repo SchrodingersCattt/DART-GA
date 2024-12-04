@@ -2,15 +2,21 @@ import argparse
 import logging
 import numpy as np
 from target import target
+from constraints_utils import apply_constraints, parse_constraints, mass_to_molar, molar_to_mass
 
 class GeneticAlgorithm:
     def __init__(self, elements, population_size=10, generations=100, crossover_rate=0.8, mutation_rate=0.1, 
-                 selection_mode="roulette", init_population=None):
+                 selection_mode="roulette", init_population=None, constraints={}, a=0.9, b=0.1, c=0.9, d=0.1):
         self.elements = elements
         self.generations = generations
         self.crossover_rate = crossover_rate
         self.mutation_rate = mutation_rate
-        self.selection_mode = selection_mode  # 新增选择模式参数
+        self.selection_mode = selection_mode
+        self.constraints = constraints 
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
         if init_population:
             logging.info("Initial population provided, manipulating sizes if necessary.")
             self.population = self.manipulate_population_size(init_population)
@@ -48,7 +54,11 @@ class GeneticAlgorithm:
 
     def evaluate_fitness(self, comp, generation=None):        
         logging.info(f"Evaluating fitness for composition: {comp}")
-        return target(self.elements, comp, generation)
+        if self.constraints:
+            molar_comp = mass_to_molar(comp, self.elements)
+            comp = apply_constraints(comp, self.elements, self.constraints)
+            comp = molar_to_mass(molar_comp, self.elements)
+        return target(self.elements, comp, generation=generation, a=self.a, b=self.b, c=self.c, d=self.d, get_density_mode="relax")
 
     def select_parents(self):
         logging.info("Selecting parents using mode: %s", self.selection_mode)
@@ -77,7 +87,7 @@ class GeneticAlgorithm:
         parents = [self.population[i] for i in selected_indices]
         return parents
 
-    def tournament_selection(self, tournament_size=3):
+    def tournament_selection(self, tournament_size=6):
         selected_population = []
         for _ in range(self.population_size):
             indices = np.random.choice(len(self.population), tournament_size, replace=False)
@@ -85,7 +95,6 @@ class GeneticAlgorithm:
             best_individual = max(tournament, key=self.evaluate_fitness)
             selected_population.append(best_individual)
         return selected_population
-
 
     def crossover(self, parent1, parent2):
         logging.info("Crossover.")
@@ -131,27 +140,37 @@ class GeneticAlgorithm:
             logging.info("Generation %d - Best Score: %f - Best Individual: %s", generation, best_score, best_individual)
         return best_individual, best_score
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genetic Algorithm for Element Optimization")
     parser.add_argument("-o", "--output", type=str, default="ga_debug.log", help="Log filename (default: ga.log)")
     parser.add_argument("-e", "--elements", type=str, default="Fe,Ni,Co,Cr,V,Cu,Al,Ti", 
                         help="Comma-separated list of elements (default: predefined list)")
-    parser.add_argument("-m", "--mode", type=str, default="random", 
+    parser.add_argument("-m", "--init_mode", type=str, default="random", 
                         help="Choose between 'random' and 'init_population'")
     parser.add_argument("-p", "--population_size", type=int, default=10, help="Population size (default: 10)")
     parser.add_argument("-s", "--selection_mode", type=str, default="roulette", 
                         help="Selection mode: 'roulette' or 'tournament' (default: 'roulette')")
     parser.add_argument("-i", "--init_population", type=str, default=None, help="Initial population (default: None)")
-    args = parser.parse_args()
+    parser.add_argument("--constraints", type=str, default=None, help="Element-wise constraints (e.g., 'Fe<0.5, Al<0.1')")
+    
+    # Arguments for a, b, c, d
+    parser.add_argument("--a", type=float, default=0.9, help="Weight for TEC mean (default: 0.9)")
+    parser.add_argument("--b", type=float, default=0.1, help="Weight for TEC std (default: 0.1)")
+    parser.add_argument("--c", type=float, default=0.9, help="Weight for density mean (default: 0.9)")
+    parser.add_argument("--d", type=float, default=0.1, help="Weight for density std (default: 0.1)")
 
+    args = parser.parse_args()
 
     logging.basicConfig(filename=args.output, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     elements = args.elements.split(",")
     logging.info("----Starting----")
     logging.info("Elements: %s", elements)
+
+    constraints = parse_constraints(args.constraints)
+    if constraints:
+        logging.info("Applying element-wise constraints")
+        logging.info(f"Constraints: {constraints}")
 
     # Must be even
     init_population = [
@@ -172,7 +191,7 @@ if __name__ == "__main__":
         [0.635, 0.3, 0.025, 0.0, 0.04, 0.0], 
         [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]]
 
-    if args.mode == "random":
+    if args.init_mode == "random":
         init_population = None
     ga = GeneticAlgorithm(
         elements=elements,
@@ -181,7 +200,9 @@ if __name__ == "__main__":
         crossover_rate=0.8, 
         mutation_rate=0.3, 
         selection_mode=args.selection_mode,  
-        init_population=init_population)
+        init_population=init_population,
+        constraints=constraints,
+        a=args.a, b=args.b, c=args.c, d=args.d)
     best_individual, best_score = ga.evolve()
 
     logging.info(f"Best Individual: {best_individual}, Best Score: {best_score}")

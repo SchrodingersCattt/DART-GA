@@ -169,11 +169,17 @@ class TrajectoryObserver:
 def relax_structure(ss: Structure, calculator: Union[DPCalculator, str]):
     try:
         relaxer = Relaxer(calculator, 'FIRE')
-        result = relaxer.relax(ss, 1.0, 500, None)            
-        return result["final_structure"]
+        result = relaxer.relax(ss, 1.0, 500, None)
+        
+        # Check if the structure converged
+        if result["converged"]:
+            return result["final_structure"]
+        else:
+            raise ValueError("Structure did not converge during relaxation.")
         
     except Exception as e:
-        logging.error(f"Error processing {sys_name}/{idx}: {str(e)}")
+        logging.error(f"Error processing structure relaxation: {str(e)}")
+        raise
 
 def calculate_density(raw_structure: Structure, calculator: Union[DPCalculator, str]):
     relaxed_structure = relax_structure(raw_structure, calculator)

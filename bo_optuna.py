@@ -4,50 +4,7 @@ import argparse
 import logging
 import re
 from target import target
-
-def parse_constraints(constraints_str):
-    """
-    Parse a constraints string into a dictionary of element-wise constraints.
-    
-    :param constraints_str: A string of constraints (e.g., 'Fe<0.5, Al<0.1')
-    :return: A dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
-    """
-    constraints = {}
-    if constraints_str:
-        for constraint in constraints_str.split(','):
-            if '<' in constraint:
-                element, condition = constraint.split('<')
-                constraints[element] = f"<{condition}"
-            elif '>' in constraint:
-                element, condition = constraint.split('>')
-                constraints[element] = f">{condition}"
-            else:
-                logging.warning(f"Invalid constraint format: {constraint}")
-    return constraints
-
-def apply_constraints(compositions, elements, constraints):
-    """
-    Apply constraints to the compositions based on element names.
-    
-    :param compositions: List of composition values
-    :param elements: List of elements corresponding to the composition values
-    :param constraints: A dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
-    :return: The modified compositions that satisfy the constraints
-    """
-    for i, element in enumerate(elements):
-        if element in constraints:
-            # Extract the condition and value (e.g., '<0.5')
-            condition_str = constraints[element]
-            condition, value = condition_str[0], float(condition_str[1:])
-            
-            # Apply the condition
-            if condition == '<' and compositions[i] > value:
-                compositions[i] = value
-            elif condition == '>' and compositions[i] < value:
-                compositions[i] = value
-            elif condition == '=' and compositions[i] != value:
-                compositions[i] = value
-    return compositions
+from constraints_utils import apply_constraints, parse_constraints, mass_to_molar, molar_to_mass
 
 def objective(trial, elements, generation, a, b, c, d, constraints):
     # Suggest compositions
@@ -56,8 +13,14 @@ def objective(trial, elements, generation, a, b, c, d, constraints):
     # Normalize compositions
     total_mass = sum(compositions)
     normalized_compositions = [comp / total_mass for comp in compositions]
+    molar_compositions = mass_to_molar(normalized_compositions, elements)
     
-    # Apply constraints
+    if constraints:
+        logging.info(f"Generation {generation}: Trial {trial.number} - Applying constraints: {constraints}")
+        molar_compositions = apply_constraints(molar_compositions, elements, constraints)
+
+    normalized_compositions = molar_to_mass(molar_compositions, elements)
+    
     if constraints:
         logging.info(f"Generation {generation}: Trial {trial.number} - Applying constraints: {constraints}")
         normalized_compositions = apply_constraints(normalized_compositions, elements, constraints)
@@ -170,7 +133,9 @@ if __name__ == "__main__":
     elements = args.elements
 
     constraints = parse_constraints(args.constraints)
-    logging.info(f"Constraints: {constraints}")
+    if constraints:
+        logging.info("Applying element-wise constraints")
+        logging.info(f"Constraints: {constraints}")
 
     if args.init_mode == 'random':
         initial_guesses = None

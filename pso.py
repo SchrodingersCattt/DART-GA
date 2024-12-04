@@ -35,7 +35,9 @@ class Particle:
 
 
 class ParticleSwarmOptimization:
-    def __init__(self, elements, n_particles=20, generations=100, inertia=0.5, cognitive=2.0, social=2.0, initial_guesses=None):
+
+    def __init__(self, elements, n_particles=20, generations=100, inertia=0.5, cognitive=2.0, social=2.0, 
+                 initial_guesses=None, constraints={}):
         self.elements = elements
         self.generations = generations
         self.initial_guesses = initial_guesses  # Store initial guesses
@@ -53,6 +55,7 @@ class ParticleSwarmOptimization:
         self.inertia = inertia
         self.cognitive = cognitive
         self.social = social
+        self.constraints = constraints
 
     def _initialize_particles(self, n_particles):
         """Randomly initialize particles."""
@@ -70,10 +73,11 @@ class ParticleSwarmOptimization:
 
     def evaluate_fitness(self, particle, generation, **kwargs):
         a, b, c, d = kwargs.get("a", 0.9), kwargs.get("b", 0.1), kwargs.get("c", 0.9), kwargs.get("d", 0.1)
+        position_with_constraints = apply_constraints(particle.position, self.elements, self.constraints)   
         try:
             score = target(
                 elements=self.elements,
-                compositions=particle.position,
+                compositions=position_with_constraints,
                 generation=generation,
                 finalize=None,
                 get_density_mode="relax",
@@ -126,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="pso_debug.log", help="Log filename (default: pso_debug.log)")
     parser.add_argument("--init_mode", type=str, default="init", help="Choose between 'init' and 'random'")
     parser.add_argument("--initial_guesses", type=float, nargs="+", action="append", help="Initial guesses for particle positions. Each guess should be a list of floats, one per element.")
+    parser.add_argument("--constraints", type=str, default=None, help="Element-wise constraints (e.g., 'Fe<0.5, Al<0.1')")
     args = parser.parse_args()
     print(args.init_mode, args.init_mode == "init")
     # Configure logging
@@ -138,6 +143,11 @@ if __name__ == "__main__":
 
     elements = args.elements
     logging.info(f"Elements: {elements}")
+
+    constraints = parse_constraints(args.constraints)
+    if constraints:
+        logging.info("Applying element-wise constraints")
+        logging.info(f"Constraints: {constraints}")
     initial_guesses = None
     if args.init_mode == "init":
         #initial_guesses = args.initial_guesses
@@ -168,7 +178,8 @@ if __name__ == "__main__":
         inertia=args.inertia,
         cognitive=args.cognitive,
         social=args.social,
-        initial_guesses=initial_guesses,  # Pass initial guesses here
+        initial_guesses=initial_guesses,
+        constraints=constraints
     )
     best_position, best_score = pso.optimize(a=0.9, b=0.1, c=0.9, d=0.1)
 

@@ -71,6 +71,7 @@ def comp2struc(element_list, mass_composition, packing):
     strucutre_list = []
     for rand_seed in range(MAX):
         np.random.seed(rand_seed)
+        _supercell = supercell.copy()
         replace_mapping = zip(pmg_elements, normalized_composition)
         atom_range = np.array(range(atom_num))
         selected_indices = []
@@ -83,7 +84,7 @@ def comp2struc(element_list, mass_composition, packing):
             chosen_idx = np.random.choice(available_indices, num, replace=False)
             selected_indices.extend(chosen_idx)
             for jj in chosen_idx:
-                ss = supercell.replace(jj, element)
+                ss = _supercell.replace(jj, element)
 
         strucutre_list.append(ss)
 
@@ -159,6 +160,7 @@ def target(
     pred_density_mean = np.mean(pred_density)
     pred_density_std = np.std(pred_density)
     target = a * (-1* pred_tec_mean) + b * pred_tec_std + c * (-1* pred_density_mean) + d * pred_density_std
+    logging.info(f"{pred_density}, {[norm2orig(den, mean= 8331.903892865434, std=182.21803336559455) for den in pred_density]}")
 
     if generation is not None:
         logging.info(
@@ -167,6 +169,8 @@ def target(
             - Generation {generation}, 
             - pred_tec_mean: {norm2orig(pred_tec_mean, mean=9.76186694677871, std=4.3042156360248125)},
             - pred_density_mean: {norm2orig(pred_density_mean, mean= 8331.903892865434, std=182.21803336559455)},
+            - pred_tec_std: {np.std([norm2orig(tec, mean=9.76186694677871, std=4.3042156360248125) for tec in pred_tec])},
+            - pred_density_std: {np.std([norm2orig(den, mean= 8331.903892865434, std=182.21803336559455) for den in pred_density])},
             - target: {target}
             ----\n
             """)

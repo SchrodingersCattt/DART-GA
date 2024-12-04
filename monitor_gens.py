@@ -1,6 +1,11 @@
 import re
-import matplotlib.pyplot as plt
 import ast
+import stat_pareto  # To import the pareto front data
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 def parse_log(log_file):
     with open(log_file, 'r') as f:
@@ -9,13 +14,17 @@ def parse_log(log_file):
     generations = []
     pred_tec_means = []
     pred_density_means = []
+    pred_density_stds = []
+    pred_tec_stds = []
     targets = []
     best_individuals = {}
 
     # Define regex patterns
     gen_pattern = re.compile(r"- Generation (\d+)")
     tec_pattern = re.compile(r"pred_tec_mean:\s*([-+]?\d*\.\d+|\d+)")
+    tec_std_pattern = re.compile(r"tec_std:\s*([-+]?\d*\.\d+|\d+)")
     density_pattern = re.compile(r"pred_density_mean:\s*([-+]?\d*\.\d+|\d+)")
+    density_std_pattern = re.compile(r"density_std:\s*([-+]?\d*\.\d+|\d+)")
     target_pattern = re.compile(r"target:\s*([-+]?\d*\.\d+|\d+)")
 
     read_blocks = False
@@ -50,6 +59,18 @@ def parse_log(log_file):
             if density_match:
                 pred_density_means.append(float(density_match.group(1)))
             
+            # Match tec_std
+            
+            tec_std_match = tec_std_pattern.search(line)
+            if tec_std_match:
+                pred_tec_stds.append(float(tec_std_match.group(1)))
+            
+            # Match density_std
+            density_std_match = density_std_pattern.search(line)
+            if density_std_match:
+                pred_density_stds.append(float(density_std_match.group(1)))
+
+            
             # Match target
             target_match = target_pattern.search(line)
             if target_match:
@@ -72,31 +93,70 @@ def parse_log(log_file):
             best_individual = list(map(float, s.split()))
             for idx, e in enumerate(element_list):
                 best_individuals[e] = best_individual[idx]
-    return generations, pred_tec_means, pred_density_means, targets, best_individuals
+    return generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds, best_individuals
 
-def plot_ga(g, tec, density, target):
-    plt.subplot(131)
+
+def plot_ga(g, tec, density, target, pred_tec_stds, pred_density_stds):
+    # Convert inputs to numpy arrays for convenience
+    g = np.array(g)
+    tec = np.array(tec)
+    density = np.array(density)
+    target = np.array(target)
+    pred_tec_stds = np.array(pred_tec_stds)
+    pred_density_stds = np.array(pred_density_stds)
+
+    # Subplot 1: TEC over generations
+    plt.subplot(141)
     plt.plot(g, tec)
+    plt.fill_between(g, tec - pred_tec_stds, tec + pred_tec_stds, alpha=0.2)
     plt.ylabel("TEC")
-
-    plt.subplot(132)
+    
+    # Inset for TEC standard deviation
+    ax_inset_tec = inset_axes(plt.gca(), width="30%", height="30%", loc="upper right")
+    ax_inset_tec.plot(g, pred_tec_stds, color='orange', label="TEC STD")
+    ax_inset_tec.set_ylabel("STD")
+    
+    # Subplot 2: Density over generations
+    plt.subplot(142)
     plt.plot(g, density)
+    plt.fill_between(g, density - pred_density_stds, density + pred_density_stds, alpha=0.2)
     plt.ylabel("Density")
     plt.xlabel("Generation")
-
-    plt.subplot(133)
+    
+    # Inset for Density standard deviation
+    ax_inset_density = inset_axes(plt.gca(), width="30%", height="30%", loc="upper right")
+    ax_inset_density.plot(g, pred_density_stds, color='orange')
+    ax_inset_density.set_ylabel("STD")
+    
+    # Subplot 3: Target over generations
+    plt.subplot(143)
     plt.plot(g, target)
     plt.ylabel("Target")
 
-    plt.tight_layout()
+    plt.subplot(144)
+    data_file = "dataset/Data_base_DFT_Thermal.xlsx"
+    raw_tec, raw_den, pareto_front, _ = stat_pareto.get_pareto_front(data_file)
+    
+    # Plot the original Pareto front
+    plt.scatter(raw_tec, raw_den, c='b', label="Orig. Data", alpha=0.5)
+    plt.scatter(pareto_front[:, 0], pareto_front[:, 1], c='r', label="Orig. Pareto Front.", marker='s')
+    plt.scatter(tec, density, c='g', label="New Points", alpha=0.5, marker='x')
+    
+    plt.xlabel("TEC")
+    plt.ylabel("Density")
+    plt.legend(loc="lower right", fontsize=8)
+
+
 
 if __name__ == "__main__":
     # Parse the log file
     import glob
-    logs = glob.glob("20241130*.log") + glob.glob("20241202*log")
+    import stat_pareto
+
+    logs = glob.glob("20241203*.log")
     for log in logs:
         print(f"=========Parsing {log}")
-        generations, pred_tec_means, pred_density_means, targets, best_individuals = parse_log(log)
+        generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds, best_individuals = parse_log(log)
         log_name = log.split(".log")[0]
         # Print results
         print("Generations:", generations)
@@ -105,6 +165,9 @@ if __name__ == "__main__":
         print("Best Individuals:", best_individuals)
         print("Targets:", targets)
 
-        plt.figure(figsize=(8,3))
-        plot_ga(generations, pred_tec_means, pred_density_means, targets)
+        plt.figure(figsize=(13,4))
+        plt.rcParams['font.family'] = 'Arial'
+        plot_ga(generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds)
+        
+        plt.tight_layout()
         plt.savefig(f"{log_name}.png")
