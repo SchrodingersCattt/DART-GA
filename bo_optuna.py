@@ -6,10 +6,20 @@ import re
 from target import target
 from constraints_utils import apply_constraints, parse_constraints, mass_to_molar, molar_to_mass
 
-def objective(trial, elements, generation, a, b, c, d, constraints):
+def objective(trial, elements, generation, a, b, c, d, constraints, step_size=None, get_density_mode="weighted_avg"):
     # Suggest compositions
     compositions = [trial.suggest_uniform(f"comp_{element}", 0, 1) for element in elements]
     logging.info(f"Generation {generation}: Trial {trial.number} - Raw Compositions: {compositions}")
+    
+    # Apply step size limit based on the generation number
+    if generation > 0 and step_size is not None:
+        # Restrict the change in composition from the previous generation
+        prev_compositions = trial.user_attrs.get('prev_compositions', [0]*len(elements))  # Keep track of previous compositions
+        compositions = [
+            np.clip(comp, prev_comp - step_size, prev_comp + step_size)
+            for comp, prev_comp in zip(compositions, prev_compositions)
+        ]
+    
     # Normalize compositions
     total_mass = sum(compositions)
     normalized_compositions = [comp / total_mass for comp in compositions]
@@ -20,10 +30,6 @@ def objective(trial, elements, generation, a, b, c, d, constraints):
         molar_compositions = apply_constraints(molar_compositions, elements, constraints)
 
     normalized_compositions = molar_to_mass(molar_compositions, elements)
-    
-    if constraints:
-        logging.info(f"Generation {generation}: Trial {trial.number} - Applying constraints: {constraints}")
-        normalized_compositions = apply_constraints(normalized_compositions, elements, constraints)
 
     logging.info(f"Generation {generation}: Trial {trial.number} - Normalized Compositions: {normalized_compositions}")
 
@@ -33,19 +39,28 @@ def objective(trial, elements, generation, a, b, c, d, constraints):
             elements=elements,
             compositions=normalized_compositions,
             finalize=None,
-            get_density_mode="relax",
+            get_density_mode=get_density_mode,
             generation=generation,
             a=a, b=b, c=c, d=d  # Pass a, b, c, d here
         )
     except Exception as e:
-        logging.error(f"Generation {generation}: Trial {trial.number} - Error during evaluation: {e}")
+        import traceback
+        logging.error(f"Generation {generation}: Trial {trial.number} - Error during evaluation: {e, traceback.format_exc()}")
         return float("inf")  # Handle failed evaluations
     
     logging.info(f"Generation {generation}: Trial {trial.number} - Score: {-score}")
-    return score  
+    
+    # Store current compositions for the next trial
+    trial.set_user_attr('prev_compositions', compositions)
+
+    return score
 
 
-def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1, c=0.9, d=0.1, constraints={}):
+
+def run_optimization(
+    elements, n_trials=100, initial_guesses=None, 
+    a=0.9, b=0.1, c=0.9, d=0.1, constraints={}, stepsize=None,
+    get_density_mode='weighted_avg'):
     # Initialize Optuna study
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler())
     generation = 0  # Starting generation
@@ -72,7 +87,7 @@ def run_optimization(elements, n_trials=100, initial_guesses=None, a=0.9, b=0.1,
             generation += 1  # Increment generation after each trial
 
     study.optimize(
-        lambda trial: objective(trial, elements, generation, a, b, c, d, constraints),  # Pass constraints here
+        lambda trial: objective(trial, elements, generation, a, b, c, d, constraints, stepsize, get_density_mode),  # Pass constraints here
         n_trials=n_trials,
         callbacks=[trial_callback]
     )
@@ -118,7 +133,8 @@ if __name__ == "__main__":
 
     # Add a new argument for constraints
     parser.add_argument("--constraints", type=str, default=None, help="Element-wise constraints (e.g., 'Fe<0.5, Al<0.1')")
-
+    parser.add_argument("--stepsize", type=float, default=None, help="Step size for the optimization process")
+    parser.add_argument("--get_density_mode", type=str, default="weighted_avg", help="Mode for density calculation (e.g. pred, relax, default: 'weighted_avg').")
     args = parser.parse_args()
 
     # Configure logging
@@ -131,7 +147,7 @@ if __name__ == "__main__":
 
     # Parse arguments
     elements = args.elements
-
+    get_density_mode = args.get_density_mode
     constraints = parse_constraints(args.constraints)
     if constraints:
         logging.info("Applying element-wise constraints")
@@ -143,16 +159,6 @@ if __name__ == "__main__":
         logging.info("Initial guesses:")
         #initial_guesses = args.initial_guesses
         initial_guesses =  [
-            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
-            [0.95, 0.05, 0.0, 0.0, 0.0, 0.0], 
-            [0.9, 0.1, 0.0, 0.0, 0.0, 0.0], 
-            [0.85, 0.15, 0.0, 0.0, 0.0, 0.0], 
-            [0.91, 0.0, 0.09, 0.0, 0.0, 0.0], 
-            [0.801, 0.1, 0.099, 0.0, 0.0, 0.0], 
-            [0.37, 0.0, 0.54, 0.09, 0.0, 0.0], 
-            [0.37, 0.0, 0.535, 0.095, 0.0, 0.0], 
-            [0.375, 0.0, 0.53, 0.095, 0.0, 0.0], 
-            [0.365, 0.0, 0.535, 0.1, 0.0, 0.0], 
             [0.636, 0.286, 0.064, 0.014, 0.0, 0.0], 
             [0.621, 0.286, 0.079, 0.014, 0.0, 0.0], 
             [0.485, 0.2, 0.225, 0.0, 0.09, 0.0], 
@@ -169,6 +175,9 @@ if __name__ == "__main__":
     a, b, c, d = args.a, args.b, args.c, args.d
 
     # Run optimization
-    best_compositions = run_optimization(elements, n_trials=n_trials, initial_guesses=initial_guesses, a=a, b=b, c=c, d=d, constraints=constraints)
+    best_compositions = run_optimization(
+        elements, n_trials=n_trials, initial_guesses=initial_guesses, 
+        a=a, b=b, c=c, d=d, constraints=constraints,
+        get_density_mode=get_density_mode)
     logging.info("Best Composition: %s", best_compositions)
     print("Best Composition:", best_compositions)

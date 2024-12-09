@@ -3,7 +3,7 @@ import glob
 import shutil
 
 
-TEC_MODELS = glob.glob("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/INVAR_tec/DIRECT_TRAINING_split_by_composition/MAPE_FINETUNE_CrossValidation/workspace*/model.ckpt.pt")
+TEC_MODELS = glob.glob("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/INVAR_tec/DIRECT_TRAINING_split_by_composition/MAPE_FINETUNE_CrossValidation_FCC/workspace*/model.ckpt.pt")
 DENSITY_MODELS = glob.glob("/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/INVAR_density_only/mae_finetune_crossValidation/workspace*/model.ckpt.pt") 
 
 def collect_models(path_list, model_prefix):

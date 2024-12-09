@@ -5,7 +5,7 @@ import stat_pareto  # To import the pareto front data
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-
+import matplotlib.cm as cm
 
 def parse_log(log_file):
     with open(log_file, 'r') as f:
@@ -134,17 +134,31 @@ def plot_ga(g, tec, density, target, pred_tec_stds, pred_density_stds):
     plt.ylabel("Target")
 
     plt.subplot(144)
+    plt.xlabel("TEC")
+    plt.ylabel("Density")
     data_file = "dataset/Data_base_DFT_Thermal.xlsx"
     raw_tec, raw_den, pareto_front, _ = stat_pareto.get_pareto_front(data_file)
     
     # Plot the original Pareto front
-    plt.scatter(raw_tec, raw_den, c='b', label="Orig. Data", alpha=0.5)
-    plt.scatter(pareto_front[:, 0], pareto_front[:, 1], c='r', label="Orig. Pareto Front.", marker='s')
-    plt.scatter(tec, density, c='g', label="New Points", alpha=0.5, marker='x')
+    plt.scatter(raw_tec, raw_den, c='#9999AA', label="Orig. Data", alpha=0.5)
+    plt.scatter(pareto_front[:, 0], pareto_front[:, 1], c='#882233', label="Orig. Pareto Front.", marker='s')
     
-    plt.xlabel("TEC")
-    plt.ylabel("Density")
-    plt.legend(loc="lower right", fontsize=8)
+    # Use the new method to get the colormap
+    cmap = plt.get_cmap('viridis')
+    
+    # Create a ScalarMappable object with a dummy array for the colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=g.min(), vmax=g.max()))
+    sm.set_array([])  # Provide an empty array for the ScalarMappable object
+    
+    # Get the current axis
+    ax = plt.gca()
+    
+    # Add a colorbar to the current axis
+    cbar = ax.figure.colorbar(sm, ax=ax, label="Generation")
+    
+    # Plot the new points with a color mapping to the generation
+    sc = ax.scatter(tec, density, c=g, label="New Points", marker='x', cmap=cmap)
+    ax.legend(loc="upper right", fontsize=8)
 
 
 
@@ -153,7 +167,7 @@ if __name__ == "__main__":
     import glob
     import stat_pareto
 
-    logs = glob.glob("20241203*.log")
+    logs = glob.glob("20241209*.log")
     for log in logs:
         print(f"=========Parsing {log}")
         generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds, best_individuals = parse_log(log)
@@ -165,9 +179,13 @@ if __name__ == "__main__":
         print("Best Individuals:", best_individuals)
         print("Targets:", targets)
 
-        plt.figure(figsize=(13,4))
-        plt.rcParams['font.family'] = 'Arial'
-        plot_ga(generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds)
-        
-        plt.tight_layout()
-        plt.savefig(f"{log_name}.png")
+        try:
+            plt.figure(figsize=(16,4))
+            plt.rcParams['font.size'] = 12
+            plt.rcParams['font.family'] = 'Arial'
+            plot_ga(generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds)
+            
+            plt.tight_layout(pad=0.2)
+            plt.savefig(f"{log_name}.png", dpi=300)
+        except Exception as e:
+            print(f"Error plotting {log}: {e}")

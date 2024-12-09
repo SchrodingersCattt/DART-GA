@@ -1,6 +1,7 @@
 import glob
 import logging
 import copy
+import json
 import dpdata
 import numpy as np
 from tqdm import tqdm
@@ -10,6 +11,9 @@ from calc_density import calculate_density
 from deepmd.calculator import DP as DPCalculator
 
 atomic_mass_file = "constant/atomic_mass.json"
+density_file = "constant/densities.json"
+with open(density_file, 'r') as f:
+    densities_dict = json.load(f)
 
 def mk_template_supercell(packing: str):
     if "fcc" in packing:
@@ -123,7 +127,7 @@ def pred(model, structure):
 
 def get_packing(elements, compositions): 
     ## TODO 
-    packing = 'bcc'
+    packing = 'fcc'
     return packing
 
 def target(
@@ -144,25 +148,34 @@ def target(
     struct_list = comp2struc(elements, compositions, packing=packing)
 
     ## TEC is original data, density is normalized data
-    pred_tec = [z_core(pred(m, s), mean=9.76186694677871, std=4.3042156360248125) for m in tec_models for s in tqdm(struct_list)]
+    pred_tec = [z_core(pred(m, s), mean=9.76186694677871, std=4.3042156360248125) for m in tec_models for s in tqdm(struct_list)]  # 
     pred_tec_mean = np.mean(pred_tec)
     pred_tec_std = np.std(pred_tec)
 
     if get_density_mode == "relax":
         assert calculator is not None, "calculator is not provided"
-        pred_density = [z_core(calculate_density(s, calculator), mean= 8331.903892865434, std=182.21803336559455) for s in tqdm(struct_list)]
+        raw_pred_density = [calculate_density(s, calculator) for s in tqdm(struct_list)]
+        logging.info(f"raw_pred_density: {raw_pred_density}")
+        pred_density = [z_core(d, mean= 8331.903892865434, std=182.21803336559455) for d in raw_pred_density]
     elif get_density_mode == "predict" or get_density_mode == "pred":
         density_models = glob.glob('models/density*.pt')
         density_models = (DeepProperty(model) for model in density_models)
         pred_density = [pred(m, s) for m in density_models for s in tqdm(struct_list)]
+    elif get_density_mode == "weighted_avg":
+        density = 0
+        for i, e in enumerate(elements):
+            c = compositions[i]
+            density += c * densities_dict[e]
+        pred_density = [z_core(density, mean= 8331.903892865434, std=182.21803336559455)]
     else:
         raise ValueError(f"{get_density_mode} not supported, choose between relax, predict or pred")
     pred_density_mean = np.mean(pred_density)
     pred_density_std = np.std(pred_density)
     target = a * (-1* pred_tec_mean) + b * pred_tec_std + c * (-1* pred_density_mean) + d * pred_density_std
-    logging.info(f"{pred_density}, {[norm2orig(den, mean= 8331.903892865434, std=182.21803336559455) for den in pred_density]}")
 
     if generation is not None:
+        logging.info(pred_density)
+        logging.info([norm2orig(den, mean= 8331.903892865434, std=182.21803336559455) for den in pred_density])
         logging.info(
             f"""
             ====\n

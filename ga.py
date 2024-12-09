@@ -6,7 +6,8 @@ from constraints_utils import apply_constraints, parse_constraints, mass_to_mola
 
 class GeneticAlgorithm:
     def __init__(self, elements, population_size=10, generations=100, crossover_rate=0.8, mutation_rate=0.1, 
-                 selection_mode="roulette", init_population=None, constraints={}, a=0.9, b=0.1, c=0.9, d=0.1):
+                 selection_mode="roulette", init_population=None, constraints={}, a=0.9, b=0.1, c=0.9, d=0.1,
+                 get_density_mode='weighted_avg'):
         self.elements = elements
         self.generations = generations
         self.crossover_rate = crossover_rate
@@ -17,6 +18,7 @@ class GeneticAlgorithm:
         self.b = b
         self.c = c
         self.d = d
+        self.get_density_mode = get_density_mode
         if init_population:
             logging.info("Initial population provided, manipulating sizes if necessary.")
             self.population = self.manipulate_population_size(init_population)
@@ -52,13 +54,13 @@ class GeneticAlgorithm:
         comp = np.random.dirichlet(np.ones(len(self.elements)), size=1)[0]
         return comp
 
-    def evaluate_fitness(self, comp, generation=None):        
+    def evaluate_fitness(self, comp, generation=None, get_density_mode='weighted_avg'):        
         logging.info(f"Evaluating fitness for composition: {comp}")
         if self.constraints:
             molar_comp = mass_to_molar(comp, self.elements)
             comp = apply_constraints(comp, self.elements, self.constraints)
             comp = molar_to_mass(molar_comp, self.elements)
-        return target(self.elements, comp, generation=generation, a=self.a, b=self.b, c=self.c, d=self.d, get_density_mode="relax")
+        return target(self.elements, comp, generation=generation, a=self.a, b=self.b, c=self.c, d=self.d, get_density_mode=self.get_density_mode)
 
     def select_parents(self):
         logging.info("Selecting parents using mode: %s", self.selection_mode)
@@ -152,6 +154,7 @@ if __name__ == "__main__":
                         help="Selection mode: 'roulette' or 'tournament' (default: 'roulette')")
     parser.add_argument("-i", "--init_population", type=str, default=None, help="Initial population (default: None)")
     parser.add_argument("--constraints", type=str, default=None, help="Element-wise constraints (e.g., 'Fe<0.5, Al<0.1')")
+    parser.add_argument("--get_density_mode", type=str, default="weighted_avg", help="Mode for density calculation (e.g. pred, relax, default: 'weighted_avg').")
     
     # Arguments for a, b, c, d
     parser.add_argument("--a", type=float, default=0.9, help="Weight for TEC mean (default: 0.9)")
@@ -168,22 +171,13 @@ if __name__ == "__main__":
     logging.info("Elements: %s", elements)
 
     constraints = parse_constraints(args.constraints)
+    get_density_mode = args.get_density_mode
     if constraints:
         logging.info("Applying element-wise constraints")
         logging.info(f"Constraints: {constraints}")
 
     # Must be even
     init_population = [
-        [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
-        [0.95, 0.05, 0.0, 0.0, 0.0, 0.0], 
-        [0.9, 0.1, 0.0, 0.0, 0.0, 0.0], 
-        [0.85, 0.15, 0.0, 0.0, 0.0, 0.0], 
-        [0.91, 0.0, 0.09, 0.0, 0.0, 0.0], 
-        [0.801, 0.1, 0.099, 0.0, 0.0, 0.0], 
-        [0.37, 0.0, 0.54, 0.09, 0.0, 0.0], 
-        [0.37, 0.0, 0.535, 0.095, 0.0, 0.0], 
-        [0.375, 0.0, 0.53, 0.095, 0.0, 0.0], 
-        [0.365, 0.0, 0.535, 0.1, 0.0, 0.0], 
         [0.636, 0.286, 0.064, 0.014, 0.0, 0.0], 
         [0.621, 0.286, 0.079, 0.014, 0.0, 0.0], 
         [0.485, 0.2, 0.225, 0.0, 0.09, 0.0], 
@@ -202,7 +196,8 @@ if __name__ == "__main__":
         selection_mode=args.selection_mode,  
         init_population=init_population,
         constraints=constraints,
-        a=args.a, b=args.b, c=args.c, d=args.d)
+        a=args.a, b=args.b, c=args.c, d=args.d,
+        get_density_mode=get_density_mode)
     best_individual, best_score = ga.evolve()
 
     logging.info(f"Best Individual: {best_individual}, Best Score: {best_score}")

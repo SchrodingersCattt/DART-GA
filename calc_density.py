@@ -168,7 +168,7 @@ class TrajectoryObserver:
 
 def relax_structure(ss: Structure, calculator: Union[DPCalculator, str]):
     try:
-        relaxer = Relaxer(calculator, 'FIRE')
+        relaxer = Relaxer(calculator, 'FIRE', relax_cell=True, timeout=3600)
         result = relaxer.relax(ss, 1.0, 500, None)
         
         # Check if the structure converged
