@@ -24,27 +24,47 @@ def parse_constraints(constraints_str):
 
 def apply_constraints(compositions, elements, constraints):
     """
-    Apply constraints to the compositions based on element names.
+    Apply constraints to the compositions while maintaining normalization to 1.0.
     
-    :param compositions: List of composition values
+    :param compositions: List of composition values (should sum to 1.0)
     :param elements: List of elements corresponding to the composition values
-    :param constraints: A dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
-    :return: The modified compositions that satisfy the constraints
+    :param constraints: Dictionary of constraints (e.g., {'Fe': '<0.5', 'Al': '<0.1'})
+    :return: The modified normalized compositions that satisfy the constraints
     """
+    original_sum = sum(compositions)
+    modified_compositions = compositions.copy()
+    
+    # First pass: Apply constraints
     for i, element in enumerate(elements):
         if element in constraints:
-            # Extract the condition and value (e.g., '<0.5')
             condition_str = constraints[element]
             condition, value = condition_str[0], float(condition_str[1:])
             
-            # Apply the condition
-            if condition == '<' and compositions[i] > value:
-                compositions[i] = value
-            elif condition == '>' and compositions[i] < value:
-                compositions[i] = value
-            elif condition == '=' and compositions[i] != value:
-                compositions[i] = value
-    return compositions
+            if condition == '<' and modified_compositions[i] > value:
+                modified_compositions[i] = value
+            elif condition == '>' and modified_compositions[i] < value:
+                modified_compositions[i] = value
+            elif condition == '=' and modified_compositions[i] != value:
+                modified_compositions[i] = value
+    
+    # Calculate the remaining composition to be distributed
+    constrained_sum = sum(modified_compositions[i] 
+                         for i, element in enumerate(elements) 
+                         if element in constraints)
+    remaining = 1.0 - constrained_sum
+    
+    # Distribute the remaining composition proportionally among unconstrained elements
+    unconstrained_indices = [i for i, element in enumerate(elements) 
+                           if element not in constraints]
+    
+    if unconstrained_indices:
+        original_unconstrained_sum = sum(compositions[i] for i in unconstrained_indices)
+        if original_unconstrained_sum > 0:
+            ratio = remaining / original_unconstrained_sum
+            for i in unconstrained_indices:
+                modified_compositions[i] *= ratio
+    
+    return modified_compositions
 
 ## atomic mass and molar mass conversion
 atoms_mass_file = "/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/Genetic_Alloy/constant/atomic_mass.json"

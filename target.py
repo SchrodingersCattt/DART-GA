@@ -107,7 +107,7 @@ def change_type_map(origin_type: list, data_type_map, model_type_map):
 def z_core(array, mean = None, std = None):
     return (array - mean) / std
 
-def norm2orig(pred, mean, std):
+def norm2orig(pred, mean=None, std=None):
     return pred * std + mean
 
 def pred(model, structure):    

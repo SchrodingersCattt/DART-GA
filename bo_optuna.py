@@ -30,7 +30,6 @@ def objective(trial, elements, generation, a, b, c, d, constraints, step_size=No
         molar_compositions = apply_constraints(molar_compositions, elements, constraints)
 
     normalized_compositions = molar_to_mass(molar_compositions, elements)
-
     logging.info(f"Generation {generation}: Trial {trial.number} - Normalized Compositions: {normalized_compositions}")
 
     # Evaluate the target
@@ -54,8 +53,6 @@ def objective(trial, elements, generation, a, b, c, d, constraints, step_size=No
     trial.set_user_attr('prev_compositions', compositions)
 
     return score
-
-
 
 def run_optimization(
     elements, n_trials=100, initial_guesses=None, 
@@ -180,4 +177,3 @@ if __name__ == "__main__":
         a=a, b=b, c=c, d=d, constraints=constraints,
         get_density_mode=get_density_mode)
     logging.info("Best Composition: %s", best_compositions)
-    print("Best Composition:", best_compositions)

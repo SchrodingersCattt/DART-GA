@@ -19,19 +19,23 @@ class GeneticAlgorithm:
         self.c = c
         self.d = d
         self.get_density_mode = get_density_mode
+        
+        # Handle population initialization
         if init_population:
             logging.info("Initial population provided, manipulating sizes if necessary.")
-            self.population = self.manipulate_population_size(init_population)
+            self.population = self.manipulate_population_size(init_population, population_size)
             self.population_size = len(self.population)
         else:
             logging.info("Initial population not provided, using population size to randomize populations.")
             self.population_size = population_size
-            self.population = self.initialize_population()
+            self.population = self.initialize_population(population_size)
 
         logging.info(f"Population size: {self.population_size}")
 
-    def manipulate_population_size(self, population):
+    def manipulate_population_size(self, population, population_size):
         manipulated_population = []
+        
+        # Adjust individual sizes (fill or truncate) based on the elements count
         for individual in population:
             if len(individual) < len(self.elements):
                 individual = np.pad(individual, (0, len(self.elements) - len(individual)), mode='constant')
@@ -40,11 +44,23 @@ class GeneticAlgorithm:
                 individual = individual[:len(self.elements)]
                 logging.info(f"Truncated individual: {individual}")
             manipulated_population.append(individual)
+        
+        # If the population size is greater than initial population size, add random compositions
+        if population_size > len(manipulated_population):
+            logging.info(f"Population size {population_size} is greater than initial population size {len(manipulated_population)}.")
+            remaining_size = population_size - len(manipulated_population)
+            manipulated_population.extend([self.random_composition() for _ in range(remaining_size)])
+        
+        # If the population size is less than or equal to the initial population size, truncate it
+        elif population_size < len(manipulated_population):
+            logging.info(f"Population size {population_size} is less than initial population size {len(manipulated_population)}.")
+            manipulated_population = manipulated_population[:population_size]
+        
         return manipulated_population
 
-    def initialize_population(self):
+    def initialize_population(self, population_size):
         logging.info("Initializing population.")
-        population = [self.random_composition() for _ in range(self.population_size)]
+        population = [self.random_composition() for _ in range(population_size)]
         if not population:
             raise ValueError("Population initialization failed: population is empty.")
         return population
@@ -65,8 +81,10 @@ class GeneticAlgorithm:
     def select_parents(self):
         logging.info("Selecting parents using mode: %s", self.selection_mode)
         if self.selection_mode == "roulette":
+            logging.info("Using roulette wheel selection.")
             return self.roulette_selection()
         elif self.selection_mode == "tournament":
+            logging.info("Using tournament selection.")
             return self.tournament_selection()
         else:
             raise ValueError(f"Unknown selection mode: {self.selection_mode}")
@@ -89,7 +107,7 @@ class GeneticAlgorithm:
         parents = [self.population[i] for i in selected_indices]
         return parents
 
-    def tournament_selection(self, tournament_size=6):
+    def tournament_selection(self, tournament_size=3):
         selected_population = []
         for _ in range(self.population_size):
             indices = np.random.choice(len(self.population), tournament_size, replace=False)
@@ -109,12 +127,12 @@ class GeneticAlgorithm:
             return offspring1, offspring2
         return parent1, parent2
 
-    def mutate(self, individual):
+    def mutate(self, individual, stepsize=1.0):
         logging.info("Mutating.")
         if np.random.rand() < self.mutation_rate:
             for _ in range(np.random.randint(1, len(self.elements) // 2 + 1)):  
                 point = np.random.randint(len(self.elements))
-                individual[point] += np.random.uniform(0.01, 0.05)
+                individual[point] += np.random.uniform(0.01, stepsize)
                 individual = np.clip(individual, a_min=0, a_max=1)
                 individual /= np.sum(individual)  
         individual = np.clip(individual, a_min=0, a_max=1)
@@ -190,7 +208,7 @@ if __name__ == "__main__":
     ga = GeneticAlgorithm(
         elements=elements,
         population_size=args.population_size,
-        generations=100, 
+        generations=8000, 
         crossover_rate=0.8, 
         mutation_rate=0.3, 
         selection_mode=args.selection_mode,  
