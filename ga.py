@@ -2,7 +2,7 @@ import argparse
 import logging
 import numpy as np
 from target import target
-from constraints_utils import apply_constraints, parse_constraints, mass_to_molar, molar_to_mass
+from constraints_utils import apply_constraints, parse_constraints, mass_to_molar, molar_to_mass, sigmoid
 
 class GeneticAlgorithm:
     def __init__(self, elements, population_size=10, generations=100, crossover_rate=0.8, mutation_rate=0.1, 
@@ -68,6 +68,7 @@ class GeneticAlgorithm:
     def random_composition(self):
         logging.info("Generating random composition.")
         comp = np.random.dirichlet(np.ones(len(self.elements)), size=1)[0]
+        comp = apply_constraints(comp, self.elements, self.constraints)
         return comp
 
     def evaluate_fitness(self, comp, generation=None, get_density_mode='weighted_avg'):        
@@ -92,13 +93,7 @@ class GeneticAlgorithm:
     def roulette_selection(self):
         fitness_scores = np.array([self.evaluate_fitness(comp) for comp in self.population])
         logging.info(f"Fitness scores: {fitness_scores}")
-        total_fitness = np.sum(fitness_scores)
-        
-        if total_fitness == 0:
-            probabilities = np.ones(self.population_size) / self.population_size
-        else:
-            probabilities = fitness_scores / total_fitness
-        
+        probabilities = sigmoid(fitness_scores)        
         probabilities = np.clip(probabilities, a_min=0, a_max=1)
         probabilities = probabilities / np.sum(probabilities)
         logging.info(f"Selection probabilities: {probabilities}")
@@ -123,7 +118,9 @@ class GeneticAlgorithm:
             offspring1 = np.concatenate((parent1[:point], parent2[point:]))
             offspring2 = np.concatenate((parent2[:point], parent1[point:]))
             offspring1 /= np.sum(offspring1) 
-            offspring2 /= np.sum(offspring2)
+            offspring2 /= np.sum(offspring2)            
+            offspring1 = apply_constraints(offspring1, self.elements, self.constraints)
+            offspring2 = apply_constraints(offspring2, self.elements, self.constraints)
             return offspring1, offspring2
         return parent1, parent2
 
@@ -135,6 +132,7 @@ class GeneticAlgorithm:
                 individual[point] += np.random.uniform(0.01, stepsize)
                 individual = np.clip(individual, a_min=0, a_max=1)
                 individual /= np.sum(individual)  
+        individual = apply_constraints(individual, self.elements, self.constraints)
         individual = np.clip(individual, a_min=0, a_max=1)
         return individual
 
