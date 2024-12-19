@@ -33,6 +33,8 @@ def parse_log(log_file, mode):
 
     read_blocks = False
     best_individual_str = ""
+    current_generation = None
+
     for line in lines:
         if "Elements: " in line:
             element_list = ast.literal_eval(line.split("Elements: ")[-1])
@@ -46,7 +48,14 @@ def parse_log(log_file, mode):
             # Match Generation
             gen_match = gen_pattern.search(line)
             if gen_match:
-                generations.append(int(gen_match.group(1)))            
+                generation = int(gen_match.group(1))
+                if generation not in generations:
+                    generations.append(generation)
+                    # Only store the best individual when a new generation starts
+                    if best_individuals:
+                        best_individuals_list.append(deepcopy(best_individuals))
+                current_generation = generation
+
             # Match pred_tec_mean
             tec_match = tec_pattern.search(line)
             if tec_match:
@@ -67,23 +76,22 @@ def parse_log(log_file, mode):
             target_match = target_pattern.search(line)
             if target_match:
                 targets.append(float(target_match.group(1)))
-        
+
         if mode == "ga":
-            if "Best Individual: [" in line and not "]" in line:
-                best_individual_str = line.split("Best Individual: [")[-1]          
+            if " - Best Individual: [" in line and not "]" in line:
+                best_individual_str = line.split("Best Individual: [")[-1]  
             elif "]" in line and best_individual_str:
                 best_individual_str += line.split("]")[0] 
                 best_individual = list(map(float, best_individual_str.split()))
                 for idx, e in enumerate(element_list):
-                    best_individuals[e] = best_individual[idx]            
-                best_individual_str = ""        
-            elif "Best Individual: [" in line and '[' in line and ']' in line: 
+                    best_individuals[e] = best_individual[idx]
+                best_individual_str = ""
+            if " - Best Individual: [" in line and '[' in line and ']' in line: 
                 s = line.split("Best Individual: [")[-1].split("]")[0]
                 best_individual = list(map(float, s.split()))
                 for idx, e in enumerate(element_list):
                     best_individuals[e] = best_individual[idx]
-            best_individuals_list.append(deepcopy(best_individuals))
-
+            
         if mode == 'bo':
             if " - Normalized Compositions: [" in line and not "]" in line:
                 best_individual_str = line.split(" - Normalized Compositions: [")[-1]        
@@ -98,9 +106,13 @@ def parse_log(log_file, mode):
                 best_individual = list(map(float, s.split(','))) if ',' in s else list(map(float, s.split()))
                 for idx, e in enumerate(element_list):
                     best_individuals[e] = best_individual[idx]
-            best_individuals_list.append(deepcopy(best_individuals))
-    
+
+    # Append the last best individual after the loop ends
+    if best_individuals:
+        best_individuals_list.append(deepcopy(best_individuals))
+
     return generations, pred_tec_means, pred_density_means, targets, pred_tec_stds, pred_density_stds, best_individuals_list
+
 
 
 def plot_ga(g, tec, density, target, pred_tec_stds, pred_density_stds, log_name):
@@ -191,7 +203,7 @@ if __name__ == "__main__":
     from time import sleep
     logging.basicConfig(level=logging.INFO)
 
-    logs = glob.glob("202412*.log")
+    logs = glob.glob("20241219*.log")
     
     for log in logs:
         if '_bo' in log:
@@ -223,17 +235,20 @@ if __name__ == "__main__":
             plt.savefig(f"{log_name}.png", dpi=300)
 
             # New Pareto Fronts.
-            mask = np.logical_and(np.array(pred_tec_means) < 3, np.array(pred_density_means) < 7800)
+            mask = np.logical_and(np.array(pred_tec_means) < 5, np.array(pred_density_means) < 8000)
             best_individuals = regularize_precision(best_individuals)
             pred_tec_means  = regularize_precision(pred_tec_means)
             pred_density_means  = regularize_precision(pred_density_means)
-            targets = regularize_precision(targets) 
+            targets = regularize_precision(targets)
             for idx, g in enumerate(generations):
                 if not g in np.array(generations)[mask]:
                     continue
-                new_paretos[g] = {'Pred Tec Means': pred_tec_means[idx], 'Pred Density Means': pred_density_means[idx], 'Best Individuals': best_individuals[idx]}
-            
-            logging.info(f"{log}: {pd.DataFrame(new_paretos).T.to_markdown()}")
+                new_paretos[g] = {
+                    'Pred Tec Means': pred_tec_means[idx], 
+                    'Pred Density Means': pred_density_means[idx], 
+                    'Best Individuals': best_individuals[idx]
+                }
+            logging.info(f"{log}:\n {pd.DataFrame(new_paretos).T.to_markdown()}")
         except Exception as e:
             logging.error(f"Error plotting {log}: {e, traceback.print_exc()}")
             print(f"Error plotting {log}: {e}")

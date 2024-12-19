@@ -181,9 +181,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(filename=args.output, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+    logging.info("Arguments: %s", args)
     elements = args.elements.split(",")
-    logging.info("----Starting----")
+    logging.info("===----Starting----===")
     logging.info("Elements: %s", elements)
 
     constraints = parse_constraints(args.constraints)
