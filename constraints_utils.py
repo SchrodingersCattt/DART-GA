@@ -7,56 +7,59 @@ def parse_constraints(constraints_str):
     constraints = {}
     if constraints_str:
         for constraint in constraints_str.split(','):
-            if '<' in constraint:
-                element, condition = constraint.split('<')
-                constraints[element] = f"<{condition}"
-            elif '>' in constraint:
-                element, condition = constraint.split('>')
-                constraints[element] = f">{condition}"
-            elif '=' in constraint:
-                element, condition = constraint.split('=')
-                constraints[element] = f"={condition}"
+            constraint = constraint.strip()
+            if '(' in constraint and ')' in constraint:
+                # Handle sum constraints
+                elements_part = constraint[constraint.find('(')+1:constraint.find(')')]
+                elements = [e.strip() for e in elements_part.split('+')]
+                condition = constraint[constraint.find(')')+1]
+                value = float(constraint[constraint.find(')')+2:])
+                constraints[tuple(elements)] = f"{condition}{value}"
             else:
-                logging.warning(f"Invalid constraint format: {constraint}")
+                # Handle single element constraints
+                if '<' in constraint:
+                    element, condition = constraint.split('<')
+                    constraints[element.strip()] = f"<{condition}"
+                elif '>' in constraint:
+                    element, condition = constraint.split('>')
+                    constraints[element.strip()] = f">{condition}"
+                elif '=' in constraint:
+                    element, condition = constraint.split('=')
+                    constraints[element.strip()] = f"={condition}"
     return constraints
 
 def apply_constraints(compositions, elements, constraints):
-    original_sum = sum(compositions)
     modified_compositions = compositions.copy()
-
-    # First pass: Apply constraints
-    for i, element in enumerate(elements):
-        if element in constraints:
-            condition_str = constraints[element]
+    
+    # First handle sum constraints
+    for elements_tuple, condition_str in constraints.items():
+        if isinstance(elements_tuple, tuple):
+            indices = [elements.index(e) for e in elements_tuple]
+            current_sum = sum(modified_compositions[i] for i in indices)
             condition, value = condition_str[0], float(condition_str[1:])
-
+            
+            if condition == '<' and current_sum > value:
+                scale = value / current_sum
+                for i in indices:
+                    modified_compositions[i] *= scale
+                    
+    # Then handle single element constraints
+    for element, condition_str in constraints.items():
+        if isinstance(element, str):
+            i = elements.index(element)
+            condition, value = condition_str[0], float(condition_str[1:])
+            
             if condition == '<' and modified_compositions[i] > value:
                 modified_compositions[i] = value
             if condition == '>' and modified_compositions[i] < value:
                 modified_compositions[i] = value
             if condition == '=' and modified_compositions[i] != value:
                 modified_compositions[i] = value
-
-    # Calculate the remaining composition to be distributed
-    constrained_sum = sum(modified_compositions[i]
-                          for i, element in enumerate(elements)
-                          if element in constraints)
-    remaining = 1.0 - constrained_sum
-
-    # Distribute the remaining composition proportionally among unconstrained elements
-    unconstrained_indices = [i for i, element in enumerate(elements)
-                             if element not in constraints]
-
-    if unconstrained_indices:
-        original_unconstrained_sum = sum(compositions[i] for i in unconstrained_indices)
-        if original_unconstrained_sum > 0:
-            ratio = remaining / original_unconstrained_sum
-            for i in unconstrained_indices:
-                modified_compositions[i] *= ratio
-
-    modified_compositions = np.clip(modified_compositions, 0, 1)  # Ensuring no values are out of bounds
-    modified_compositions /= np.sum(modified_compositions)  # Renormalize after modification
-
+                
+    # Normalize
+    modified_compositions = np.clip(modified_compositions, 0, 1)
+    modified_compositions /= np.sum(modified_compositions)
+    
     return modified_compositions
 
 

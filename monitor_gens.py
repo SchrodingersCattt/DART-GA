@@ -88,7 +88,7 @@ def parse_log(log_file, mode):
                 best_individual_str = ""
             if " - Best Individual: [" in line and '[' in line and ']' in line: 
                 s = line.split("Best Individual: [")[-1].split("]")[0]
-                best_individual = list(map(float, s.split()))
+                best_individual = list(map(float, s.split(',')))
                 for idx, e in enumerate(element_list):
                     best_individuals[e] = best_individual[idx]
             
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     from time import sleep
     logging.basicConfig(level=logging.INFO)
 
-    logs = glob.glob("20241219*.log")
+    logs = glob.glob("20241231*.log")
     
     for log in logs:
         if '_bo' in log:

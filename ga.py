@@ -74,10 +74,17 @@ class GeneticAlgorithm:
     def evaluate_fitness(self, comp, generation=None, get_density_mode='weighted_avg'):        
         logging.info(f"Evaluating fitness for composition: {comp}")
         if self.constraints:
+            # Apply constraints in molar fraction
             molar_comp = mass_to_molar(comp, self.elements)
-            comp = apply_constraints(comp, self.elements, self.constraints)
-            comp = molar_to_mass(molar_comp, self.elements)
-        return target(self.elements, comp, generation=generation, a=self.a, b=self.b, c=self.c, d=self.d, get_density_mode=self.get_density_mode)
+            molar_comp = apply_constraints(molar_comp, self.elements, self.constraints)
+            # Convert back to mass fraction for target function
+            mass_comp = molar_to_mass(molar_comp, self.elements)
+            return target(self.elements, mass_comp, generation=generation, 
+                        a=self.a, b=self.b, c=self.c, d=self.d, 
+                        get_density_mode=self.get_density_mode)
+        return target(self.elements, comp, generation=generation, 
+                    a=self.a, b=self.b, c=self.c, d=self.d, 
+                    get_density_mode=self.get_density_mode)
 
     def select_parents(self):
         logging.info("Selecting parents using mode: %s", self.selection_mode)
@@ -153,10 +160,11 @@ class GeneticAlgorithm:
                 raise ValueError("Evolution failed: new_population is empty.")
             self.population = new_population
 
-            best_individual = max(self.population, key=self.evaluate_fitness)
-            best_score = self.evaluate_fitness(best_individual, generation)
-            logging.info("Generation %d - Best Score: %f - Best Individual: %s", generation, best_score, best_individual)
-        return best_individual, best_score
+            best_individual_mass = max(self.population, key=self.evaluate_fitness)
+            best_score = self.evaluate_fitness(best_individual_mass, generation)
+            best_individual_molar = mass_to_molar(best_individual_mass, self.elements) 
+            logging.info("Generation %d - Best Score: %f - Best Individual: %s", generation, best_score, best_individual_molar)
+        return best_individual_molar, best_score
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genetic Algorithm for Element Optimization")
