@@ -203,7 +203,7 @@ if __name__ == "__main__":
     from time import sleep
     logging.basicConfig(level=logging.INFO)
 
-    logs = glob.glob("20241231*.log")
+    logs = glob.glob("2025*.log")
     
     for log in logs:
         if '_bo' in log:

@@ -29,7 +29,7 @@ def mk_template_supercell(packing: str):
         raise ValueError(f"{packing} not supported")
 
 def normalize_composition(composition: list, total: int) -> list:
-    if not composition or total <= 0:
+    if np.any(composition) == False or total <= 0:
         print("Warning: Invalid input. Returning None.")
         return None
 
@@ -59,11 +59,10 @@ def mass_to_molar(mass_dict: dict):
         molar_composition.append(mass_dict[kk] / Element(kk).atomic_mass)
     return molar_composition
 
-def comp2struc(element_list, mass_composition, packing):
+def comp2struc(element_list, composition, packing):
     MAX = 10
     supercell = mk_template_supercell(packing)
     pmg_elements = [Element(e) for e in element_list]
-    composition = mass_to_molar(dict(zip(element_list, mass_composition)))
 
     atom_num = len(supercell)
     normalized_composition = normalize_composition(copy.deepcopy(composition), atom_num)
