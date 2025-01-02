@@ -88,7 +88,7 @@ def parse_log(log_file, mode):
                 best_individual_str = ""
             if " - Best Individual: [" in line and '[' in line and ']' in line: 
                 s = line.split("Best Individual: [")[-1].split("]")[0]
-                best_individual = list(map(float, s.split(',')))
+                best_individual = list(map(float, s.split()))
                 for idx, e in enumerate(element_list):
                     best_individuals[e] = best_individual[idx]
             
@@ -235,7 +235,7 @@ if __name__ == "__main__":
             plt.savefig(f"{log_name}.png", dpi=300)
 
             # New Pareto Fronts.
-            mask = np.logical_and(np.array(pred_tec_means) < 5, np.array(pred_density_means) < 8000)
+            mask = np.logical_and(np.array(pred_tec_means) < 4, np.array(pred_density_means) < 8100)
             best_individuals = regularize_precision(best_individuals)
             pred_tec_means  = regularize_precision(pred_tec_means)
             pred_density_means  = regularize_precision(pred_density_means)
@@ -249,6 +249,8 @@ if __name__ == "__main__":
                     'Best Individuals': best_individuals[idx]
                 }
             logging.info(f"{log}:\n {pd.DataFrame(new_paretos).T.to_markdown()}")
+            pd.DataFrame(new_paretos).T.to_csv(f"{log_name}.csv")
+            print()
         except Exception as e:
             logging.error(f"Error plotting {log}: {e, traceback.print_exc()}")
             print(f"Error plotting {log}: {e}")

@@ -43,6 +43,10 @@ class GeneticAlgorithm:
             elif len(individual) > len(self.elements):
                 individual = individual[:len(self.elements)]
                 logging.info(f"Truncated individual: {individual}")
+
+            # Normalize to ensure mass fractions sum to 1
+            individual = np.array(individual)
+            individual = individual / np.sum(individual)
             manipulated_population.append(individual)
         
         # If the population size is greater than initial population size, add random compositions
@@ -67,9 +71,12 @@ class GeneticAlgorithm:
 
     def random_composition(self):
         logging.info("Generating random composition.")
-        comp = np.random.dirichlet(np.ones(len(self.elements)), size=1)[0]
-        comp = apply_constraints(comp, self.elements, self.constraints)
-        return comp
+        mass_comp = np.random.dirichlet(np.ones(len(self.elements)), size=1)[0]
+        if self.constraints:
+            molar_comp = mass_to_molar(mass_comp, self.elements)
+            molar_comp = apply_constraints(molar_comp, self.elements, self.constraints)
+            mass_comp = molar_to_mass(molar_comp, self.elements)
+        return mass_comp
 
     def evaluate_fitness(self, comp, generation=None, get_density_mode='weighted_avg'):        
         logging.info(f"Evaluating fitness for composition: {comp}")
@@ -124,10 +131,19 @@ class GeneticAlgorithm:
             point = np.random.randint(1, len(self.elements) - 1)
             offspring1 = np.concatenate((parent1[:point], parent2[point:]))
             offspring2 = np.concatenate((parent2[:point], parent1[point:]))
-            offspring1 /= np.sum(offspring1) 
-            offspring2 /= np.sum(offspring2)            
-            offspring1 = apply_constraints(offspring1, self.elements, self.constraints)
-            offspring2 = apply_constraints(offspring2, self.elements, self.constraints)
+            # Normalize offspring
+            offspring1 /= np.sum(offspring1)
+            offspring2 /= np.sum(offspring2)
+            
+            # Convert to molar, apply constraints, then back to mass
+            if self.constraints:
+                molar1 = mass_to_molar(offspring1, self.elements)
+                molar2 = mass_to_molar(offspring2, self.elements)
+                molar1 = apply_constraints(molar1, self.elements, self.constraints)
+                molar2 = apply_constraints(molar2, self.elements, self.constraints)
+                offspring1 = molar_to_mass(molar1, self.elements)
+                offspring2 = molar_to_mass(molar2, self.elements)
+            
             return offspring1, offspring2
         return parent1, parent2
 
@@ -139,7 +155,11 @@ class GeneticAlgorithm:
                 individual[point] += np.random.uniform(0.01, stepsize)
                 individual = np.clip(individual, a_min=0, a_max=1)
                 individual /= np.sum(individual)  
-        individual = apply_constraints(individual, self.elements, self.constraints)
+            # Convert to molar, apply constraints, then back to mass
+            if self.constraints:
+                molar = mass_to_molar(individual, self.elements)
+                molar = apply_constraints(molar, self.elements, self.constraints)
+                individual = molar_to_mass(molar, self.elements)
         individual = np.clip(individual, a_min=0, a_max=1)
         return individual
 

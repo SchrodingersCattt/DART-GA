@@ -2,7 +2,8 @@
 *.log
 *.png
 _workplace/
-.nfs
+*.nfs*
+*csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
