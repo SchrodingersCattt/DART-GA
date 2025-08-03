@@ -248,11 +248,17 @@ if __name__ == "__main__":
                     'Pred Density Means': pred_density_means[idx], 
                     'Best Individuals': best_individuals[idx]
                 }
-            logging.info(f"{log}:\n {pd.DataFrame(new_paretos).T.to_markdown()}")
+                
             df = pd.DataFrame(new_paretos).T
-            df_sorted = df.sort_values(by='Pred Tec Means', ascending=True)
-            df_sorted.to_csv(f"{log_name}.csv")
-            logging.info(f"{log}:\n {df_sorted.to_markdown()}")
+            # Check if 'Pred Tec Means' column exists and handle appropriately
+            if not df.empty and 'Pred Tec Means' in df.columns:
+                df_sorted = df.sort_values(by='Pred Tec Means', ascending=True)
+                df_sorted.to_csv(f"{log_name}.csv")
+                logging.info(f"{log}:\n {df_sorted.to_markdown()}")
+            else:
+                logging.warning(f"{log}: No 'Pred Tec Means' column found or DataFrame is empty")
+                df.to_csv(f"{log_name}.csv")
+                logging.info(f"{log}:\n {df.to_markdown()}")
 
             print()
         except Exception as e:
