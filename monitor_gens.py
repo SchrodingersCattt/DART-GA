@@ -235,7 +235,7 @@ if __name__ == "__main__":
             plt.savefig(f"{log_name}.png", dpi=300)
 
             # New Pareto Fronts.
-            mask = np.logical_and(np.array(pred_tec_means) < 4, np.array(pred_density_means) < 8100)
+            mask = np.logical_and(np.array(pred_tec_means) < 5, np.array(pred_density_means) < 8100)
             best_individuals = regularize_precision(best_individuals)
             pred_tec_means  = regularize_precision(pred_tec_means)
             pred_density_means  = regularize_precision(pred_density_means)
@@ -249,7 +249,11 @@ if __name__ == "__main__":
                     'Best Individuals': best_individuals[idx]
                 }
             logging.info(f"{log}:\n {pd.DataFrame(new_paretos).T.to_markdown()}")
-            pd.DataFrame(new_paretos).T.to_csv(f"{log_name}.csv")
+            df = pd.DataFrame(new_paretos).T
+            df_sorted = df.sort_values(by='Pred Tec Means', ascending=True)
+            df_sorted.to_csv(f"{log_name}.csv")
+            logging.info(f"{log}:\n {df_sorted.to_markdown()}")
+
             print()
         except Exception as e:
             logging.error(f"Error plotting {log}: {e, traceback.print_exc()}")

@@ -64,7 +64,7 @@ def apply_constraints(compositions, elements, constraints):
 
 
 ## atomic mass and molar mass conversion
-atoms_mass_file = "/mnt/data_nas/guomingyu/PROPERTIES_PREDICTION/Genetic_Alloy/constant/atomic_mass.json"
+atoms_mass_file = "constant/atomic_mass.json"
 with open(atoms_mass_file, 'r') as atoms_mass_file:
     atomic_mass = json.load(atoms_mass_file)
 def mass_to_molar(mass_comp: np.ndarray, element_list: list) -> np.ndarray:
