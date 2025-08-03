@@ -68,6 +68,8 @@ class GeneticAlgorithm:
     def initialize_population(self, population_size):
         logging.info("Initializing population.")
         population = [self.random_composition() for _ in range(population_size)]
+        if self.constraints:
+            population = apply_constraints(population, self.elements, self.constraints)
         if not population:
             raise ValueError("Population initialization failed: population is empty.")
         return population
@@ -178,6 +180,8 @@ class GeneticAlgorithm:
 
             best_individual_molar = max(self.population, key=self.evaluate_fitness)
             best_score = self.evaluate_fitness(best_individual_molar, generation)
+            if self.constraints:
+                best_individual_molar = apply_constraints(best_individual_molar, self.elements, self.constraints)
             logging.info("Generation %d - Best Score: %f - Best Individual: %s", generation, best_score, best_individual_molar)
         return best_individual_molar, best_score
 
@@ -223,7 +227,8 @@ if __name__ == "__main__":
         [0.485, 0.2, 0.225, 0.0, 0.09, 0.0],
         [0.605, 0.3, 0.075, 0.0, 0.02, 0.0],
         [0.635, 0.3, 0.025, 0.0, 0.04, 0.0],
-        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]]
+        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]
+    ]
 
     if args.init_mode == "random":
         init_population = None
