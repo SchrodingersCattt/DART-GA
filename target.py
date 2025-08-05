@@ -170,7 +170,7 @@ def target(
         raise ValueError(f"{get_density_mode} not supported, choose between relax, predict or pred")
     pred_density_mean = np.mean(pred_density)
     pred_density_std = np.std(pred_density)
-    target = a * (-1* pred_tec_mean) + b * pred_tec_std + c * (-1* pred_density_mean) + d * pred_density_std
+    target = a * (1/ pred_tec_mean) + b * pred_tec_std + c * (1/ pred_density_mean) + d * pred_density_std
 
     if generation is not None:
         logging.info(pred_density)
