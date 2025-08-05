@@ -186,6 +186,45 @@ class GeneticAlgorithm:
         return best_individual_molar, best_score
 
 
+def run_ga(output, elements, init_mode, population_size, selection_mode,
+           constraints, get_density_mode, a, b, c, d):
+
+    logging.basicConfig(filename=output, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info("===----Starting----===")
+    logging.info("Elements: %s", elements)
+    logging.info(f"Constraints: {constraints}")
+
+    init_population = [
+        [0.636, 0.286, 0.064, 0.014, 0.0, 0.0],
+        [0.621, 0.286, 0.079, 0.014, 0.0, 0.0],
+        [0.485, 0.2, 0.225, 0.0, 0.09, 0.0],
+        [0.605, 0.3, 0.075, 0.0, 0.02, 0.0],
+        [0.635, 0.3, 0.025, 0.0, 0.04, 0.0],
+        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]
+    ]
+
+    if init_mode == "random":
+        init_population = None
+
+    ga = GeneticAlgorithm(
+        elements=elements,
+        population_size=population_size,
+        generations=8000,
+        crossover_rate=0.8,
+        mutation_rate=0.3,
+        selection_mode=selection_mode,
+        init_population=init_population,
+        constraints=constraints,
+        a=a, b=b, c=c, d=d,
+        get_density_mode=get_density_mode)
+
+    best_individual, best_score = ga.evolve()
+
+    logging.info(f"Best Individual: {best_individual}, Best Score: {best_score}")
+    print("Best Composition:", best_individual)
+    print("Best Score:", best_score)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genetic Algorithm for Element Optimization")
     parser.add_argument("-o", "--output", type=str, default="ga_debug.log", help="Log filename (default: ga.log)")
@@ -208,44 +247,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logging.basicConfig(filename=args.output, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    logging.info("Arguments: %s", args)
-    elements = args.elements.split(",")
-    logging.info("===----Starting----===")
-    logging.info("Elements: %s", elements)
+    params = {
+        "output": args.output,
+        "elements": args.elements.split(","),
+        "init_mode": args.init_mode,
+        "population_size": args.population_size,
+        "selection_mode": args.selection_mode,
+        "constraints": parse_constraints(args.constraints),
+        "get_density_mode": args.get_density_mode,
+        "a": args.a,
+        "b": args.b,
+        "c": args.c,
+        "d": args.d
+    }
 
-    constraints = parse_constraints(args.constraints)
-    get_density_mode = args.get_density_mode
-    if constraints:
-        logging.info("Applying element-wise constraints")
-        logging.info(f"Constraints: {constraints}")
-
-    # Must be even
-    init_population = [
-        [0.636, 0.286, 0.064, 0.014, 0.0, 0.0],
-        [0.621, 0.286, 0.079, 0.014, 0.0, 0.0],
-        [0.485, 0.2, 0.225, 0.0, 0.09, 0.0],
-        [0.605, 0.3, 0.075, 0.0, 0.02, 0.0],
-        [0.635, 0.3, 0.025, 0.0, 0.04, 0.0],
-        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]
-    ]
-
-    if args.init_mode == "random":
-        init_population = None
-    # Convert initial population to mole fraction
-    ga = GeneticAlgorithm(
-        elements=elements,
-        population_size=args.population_size,
-        generations=8000,
-        crossover_rate=0.8,
-        mutation_rate=0.3,
-        selection_mode=args.selection_mode,
-        init_population=init_population,
-        constraints=constraints,
-        a=args.a, b=args.b, c=args.c, d=args.d,
-        get_density_mode=get_density_mode)
-    best_individual, best_score = ga.evolve()
-
-    logging.info(f"Best Individual: {best_individual}, Best Score: {best_score}")
-    print("Best Composition:", best_individual)
-    print("Best Score:", best_score)
+    run_ga(**params)
