@@ -4,7 +4,6 @@ import copy
 import json
 import dpdata
 import numpy as np
-from tqdm import tqdm
 from pymatgen.core.structure import Structure, Element, Lattice
 from deepmd.pt.infer.deep_eval import DeepProperty
 from calc_density import calculate_density
@@ -94,7 +93,6 @@ def comp2struc(element_list, composition, packing):
     return structure_list
 
 
-
 def change_type_map(origin_type: list, data_type_map, model_type_map):
     final_type = []
     for single_type in origin_type:
@@ -103,11 +101,14 @@ def change_type_map(origin_type: list, data_type_map, model_type_map):
 
     return final_type
 
+
 def z_core(array, mean = None, std = None):
     return (array - mean) / std
 
+
 def norm2orig(pred, mean=None, std=None):
     return pred * std + mean
+
 
 def pred(model, structure):    
     d = dpdata.System(structure, fmt='pymatgen/structure')
@@ -147,19 +148,19 @@ def target(
     struct_list = comp2struc(elements, compositions, packing=packing)
 
     ## TEC is original data, density is normalized data
-    pred_tec = [z_core(pred(m, s), mean=9.76186694677871, std=4.3042156360248125) for m in tec_models for s in tqdm(struct_list)]  # 
+    pred_tec = [z_core(pred(m, s), mean=9.76186694677871, std=4.3042156360248125) for m in tec_models for s in struct_list]  # 
     pred_tec_mean = np.mean(pred_tec)
     pred_tec_std = np.std(pred_tec)
 
     if get_density_mode == "relax":
         assert calculator is not None, "calculator is not provided"
-        raw_pred_density = [calculate_density(s, calculator) for s in tqdm(struct_list)]
+        raw_pred_density = [calculate_density(s, calculator) for s in struct_list]
         logging.info(f"raw_pred_density: {raw_pred_density}")
         pred_density = [z_core(d, mean= 8331.903892865434, std=182.21803336559455) for d in raw_pred_density]
     elif get_density_mode == "predict" or get_density_mode == "pred":
         density_models = glob.glob('models/density*.pt')
         density_models = (DeepProperty(model) for model in density_models)
-        pred_density = [pred(m, s) for m in density_models for s in tqdm(struct_list)]
+        pred_density = [pred(m, s) for m in density_models for s in struct_list]
     elif get_density_mode == "weighted_avg":
         density = 0
         for i, e in enumerate(elements):
@@ -170,7 +171,7 @@ def target(
         raise ValueError(f"{get_density_mode} not supported, choose between relax, predict or pred")
     pred_density_mean = np.mean(pred_density)
     pred_density_std = np.std(pred_density)
-    target = a * (1/ pred_tec_mean) + b * pred_tec_std + c * (1/ pred_density_mean) + d * pred_density_std
+    target = a * (-1 * pred_tec_mean) + b * pred_tec_std + c * (-1 * pred_density_mean) + d * pred_density_std
 
     if generation is not None:
         logging.info(pred_density)
