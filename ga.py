@@ -187,21 +187,12 @@ class GeneticAlgorithm:
 
 
 def run_ga(output, elements, init_mode, population_size, selection_mode,
-           constraints, get_density_mode, a, b, c, d):
+           constraints, get_density_mode, a, b, c, d, crossover_rate, mutation_rate, init_population):
 
     logging.basicConfig(filename=output, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info("===----Starting----===")
     logging.info("Elements: %s", elements)
     logging.info(f"Constraints: {constraints}")
-
-    init_population = [
-        [0.636, 0.286, 0.064, 0.014, 0.0, 0.0],
-        [0.621, 0.286, 0.079, 0.014, 0.0, 0.0],
-        [0.485, 0.2, 0.225, 0.0, 0.09, 0.0],
-        [0.605, 0.3, 0.075, 0.0, 0.02, 0.0],
-        [0.635, 0.3, 0.025, 0.0, 0.04, 0.0],
-        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]
-    ]
 
     if init_mode == "random":
         init_population = None
@@ -210,8 +201,8 @@ def run_ga(output, elements, init_mode, population_size, selection_mode,
         elements=elements,
         population_size=population_size,
         generations=8000,
-        crossover_rate=0.8,
-        mutation_rate=0.3,
+        crossover_rate=crossover_rate,
+        mutation_rate=mutation_rate,
         selection_mode=selection_mode,
         init_population=init_population,
         constraints=constraints,
@@ -244,8 +235,22 @@ if __name__ == "__main__":
     parser.add_argument("--b", type=float, default=0.1, help="Weight for TEC std (default: 0.1)")
     parser.add_argument("--c", type=float, default=0.9, help="Weight for density mean (default: 0.9)")
     parser.add_argument("--d", type=float, default=0.1, help="Weight for density std (default: 0.1)")
+    
+    # GA parameters
+    parser.add_argument("--crossover_rate", type=float, default=0.8, help="Crossover rate (default: 0.8)")
+    parser.add_argument("--mutation_rate", type=float, default=0.3, help="Mutation rate (default: 0.3)")
 
     args = parser.parse_args()
+
+    # Define initial population
+    init_population_data = [
+        [0.636, 0.286, 0.064, 0.014, 0.0, 0.0],
+        [0.621, 0.286, 0.079, 0.014, 0.0, 0.0],
+        [0.485, 0.2, 0.225, 0.0, 0.09, 0.0],
+        [0.605, 0.3, 0.075, 0.0, 0.02, 0.0],
+        [0.635, 0.3, 0.025, 0.0, 0.04, 0.0],
+        [0.635, 0.305, 0.06, 0.0, 0.0, 0.0]
+    ]
 
     params = {
         "output": args.output,
@@ -258,7 +263,10 @@ if __name__ == "__main__":
         "a": args.a,
         "b": args.b,
         "c": args.c,
-        "d": args.d
+        "d": args.d,
+        "crossover_rate": args.crossover_rate,
+        "mutation_rate": args.mutation_rate,
+        "init_population": init_population_data
     }
 
     run_ga(**params)
