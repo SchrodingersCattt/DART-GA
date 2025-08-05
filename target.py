@@ -71,7 +71,7 @@ def comp2struc(element_list, composition, packing):
     if normalized_composition is None or sum(normalized_composition) != atom_num:
         raise ValueError("Composition normalization failed.")
 
-    strucutre_list = []
+    structure_list = []
     for rand_seed in range(MAX):
         np.random.seed(rand_seed)
         _supercell = supercell.copy()
@@ -89,9 +89,9 @@ def comp2struc(element_list, composition, packing):
             for jj in chosen_idx:
                 ss = _supercell.replace(jj, element)
 
-        strucutre_list.append(ss)
+        structure_list.append(ss)
 
-    return strucutre_list
+    return structure_list
 
 
 
