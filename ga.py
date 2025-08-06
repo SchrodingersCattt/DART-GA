@@ -24,7 +24,6 @@ class GeneticAlgorithm:
         # Handle population initialization
         if init_population:
             logging.info("Initial population provided, manipulating sizes if necessary.")
-            ## TODO
             _manipulated_population = self.manipulate_population_size(init_population, population_size)
             self.population = [mass_to_molar(ind, self.elements) for ind in _manipulated_population]
             self.population_size = len(self.population)
